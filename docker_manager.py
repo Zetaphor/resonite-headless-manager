@@ -15,16 +15,21 @@ class DockerManager:
         self.ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]|\x1B[()][AB012]')
         self._monitor_running = False
 
+    def clean_output(self, text):
+        """Clean and format output text by removing ANSI sequences and handling line breaks"""
+        # Remove all ANSI escape sequences
+        clean_text = self.ansi_escape.sub('', text)
+
+        # Split on both \r\n and \n, and filter out empty lines
+        lines = [line.strip() for line in clean_text.replace('\r\n', '\n').split('\n')]
+        return [line for line in lines if line]  # Return only non-empty lines
+
+
     def add_to_buffer(self, text):
         with self.buffer_lock:
-            # Remove all ANSI escape sequences
-            clean_text = self.ansi_escape.sub('', text)
-
-            # Split on both \r\n and \n, and filter out empty lines
-            lines = [line.strip() for line in clean_text.replace('\r\n', '\n').split('\n')]
-            for line in lines:
-                if line:  # Only add non-empty lines
-                    self.output_buffer.append(line)
+            clean_lines = self.clean_output(text)
+            for line in clean_lines:
+                self.output_buffer.append(line)
 
     def get_recent_lines(self, count=50):
         with self.buffer_lock:
@@ -69,8 +74,9 @@ class DockerManager:
 
             socket.close()
             result = ''.join(output).strip()
-            # Remove ANSI escape sequences before returning
-            return self.ansi_escape.sub('', result)
+            # Use clean_output instead of direct ANSI escape removal
+            clean_lines = self.clean_output(result)
+            return '\n'.join(clean_lines)
 
         except docker.errors.NotFound:
             return f"Container {self.container_name} not found"
@@ -115,9 +121,9 @@ class DockerManager:
                                 line, buffer = buffer.split('\n', 1)
                                 line = line.strip()
                                 if line:
-                                    # Clean the line before adding to buffer and sending
-                                    clean_line = self.ansi_escape.sub('', line)
-                                    if clean_line:
+                                    # Use clean_output for single line
+                                    clean_lines = self.clean_output(line)
+                                    for clean_line in clean_lines:
                                         self.add_to_buffer(clean_line)
                                         callback(clean_line + '\n')
 
