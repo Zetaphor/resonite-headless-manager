@@ -6,6 +6,7 @@ from docker_manager import DockerManager
 import json
 import threading
 from functools import partial
+import time
 
 app = FastAPI()
 
@@ -17,6 +18,39 @@ active_connections = []
 
 # Initialize DockerManager
 docker_manager = DockerManager("resonite-headless")  # Replace with your container name
+
+def format_uptime(uptime_str):
+    """Convert .NET TimeSpan format to human readable format"""
+    try:
+        # Split into days, hours, minutes, seconds
+        parts = uptime_str.split('.')
+        if len(parts) != 2:
+            return uptime_str
+
+        days = 0
+        time_parts = parts[0].split(':')
+        if len(time_parts) != 3:
+            return uptime_str
+
+        hours, minutes, seconds = map(int, time_parts)
+
+        # Handle days if present
+        if hours >= 24:
+            days = hours // 24
+            hours = hours % 24
+
+        # Build readable string
+        components = []
+        if days > 0:
+            components.append(f"{days} {'day' if days == 1 else 'days'}")
+        if hours > 0:
+            components.append(f"{hours} {'hour' if hours == 1 else 'hours'}")
+        if not days and minutes > 0:  # Only show minutes if less than a day
+            components.append(f"{minutes} {'minute' if minutes == 1 else 'minutes'}")
+
+        return ' '.join(components) if components else "just started"
+    except:
+        return uptime_str
 
 @app.get("/")
 async def get():
@@ -59,31 +93,48 @@ async def websocket_endpoint(websocket: WebSocket):
                     print(len(worlds_output))
 
                     worlds = []
-                    for world in worlds_output:
-                        # Split by tabs to separate the main sections
+                    for i, world in enumerate(worlds_output):
+                        # First focus on this world
+                        docker_manager.send_command(f"focus {i}")
+                        # Add delay to prevent overwhelming the container
+                        time.sleep(1)
+
+                        # Get detailed status
+                        status_output = docker_manager.send_command("status")
+                        status_lines = status_output.split('\n')[1:-1]  # Remove command and prompt
+
+                        # Parse status output
+                        status_data = {}
+                        for line in status_lines:
+                            if ': ' in line:
+                                key, value = line.split(': ', 1)
+                                status_data[key] = value
+
+                        # Split by tabs to separate the main sections (from original worlds command)
                         parts = world.split('\t')
 
                         # Extract name and index from the first part
                         name_part = parts[0]
-                        # Find the position where "Users:" starts
                         users_index = name_part.find("Users:")
-                        # Extract just the name portion (removing the index and trailing spaces)
                         name = name_part[name_part.find(']') + 2:users_index].strip()
 
-                        # Extract users count from the first part
-                        users = int(name_part[users_index:].split(': ')[1])
-                        # Extract remaining values
-                        present = int(parts[1].split(': ')[1])
-                        accessLevel = parts[2].split(': ')[1]
-                        maxUsers = int(parts[3].split(': ')[1])
-
-                        worlds.append({
+                        # Create world data combining both outputs
+                        world_data = {
                             "name": name,
-                            "users": users,
-                            "present": present,
-                            "accessLevel": accessLevel,
-                            "maxUsers": maxUsers,
-                        })
+                            "sessionId": status_data.get("SessionID", ""),
+                            "users": int(status_data.get("Current Users", 0)),
+                            "present": int(status_data.get("Present Users", 0)),
+                            "maxUsers": int(status_data.get("Max Users", 0)),
+                            "uptime": format_uptime(status_data.get("Uptime", "")),
+                            "accessLevel": status_data.get("Access Level", ""),
+                            "hidden": status_data.get("Hidden from listing", "False") == "True",
+                            "mobileFriendly": status_data.get("Mobile Friendly", "False") == "True",
+                            "description": status_data.get("Description", ""),
+                            "tags": status_data.get("Tags", ""),
+                            "userList": status_data.get("Users", "").strip().split()
+                        }
+
+                        worlds.append(world_data)
 
                     print(worlds)
 
