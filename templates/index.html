@@ -4,6 +4,15 @@
 <head>
   <title>Docker Container Console</title>
   <style>
+    body {
+      background-color: #1a1a1a;
+      color: #ffffff;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
     #output {
       width: 100%;
       height: 400px;
@@ -17,13 +26,28 @@
 
     #command-input {
       width: 80%;
-      padding: 5px;
+      padding: 8px 12px;
+      background-color: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      color: #ffffff;
+      font-family: monospace;
+      border-radius: 4px;
+    }
+
+    #command-input:focus {
+      outline: none;
+      border-color: #4CAF50;
     }
 
     #status {
       margin-bottom: 10px;
-      padding: 10px;
-      background-color: #f0f0f0;
+      padding: 15px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     .command-line {
@@ -33,11 +57,164 @@
     .error {
       color: #ff0000;
     }
+
+    #worlds-container {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #2a2a2a;
+      border-radius: 5px;
+    }
+
+    #worlds-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 15px;
+      padding: 5px;
+    }
+
+    .world-card {
+      background-color: #3a3a3a;
+      padding: 15px;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .world-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .world-card .world-name {
+      font-size: 1.1em;
+      font-weight: bold;
+      color: #4CAF50;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #4a4a4a;
+      margin-bottom: 5px;
+    }
+
+    .world-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #ffffff;
+      font-family: monospace;
+    }
+
+    .world-stat .label {
+      color: #888;
+    }
+
+    .world-card span {
+      color: #ffffff;
+      font-family: monospace;
+    }
+
+    .world-card .world-name {
+      font-weight: bold;
+      color: #4CAF50;
+    }
+
+    .worlds-header {
+      color: #ffffff;
+      margin-bottom: 10px;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+
+    .worlds-loading {
+      color: #888;
+      font-style: italic;
+      padding: 10px;
+    }
+
+    .no-worlds {
+      color: #888;
+      padding: 10px;
+      text-align: center;
+      background-color: #3a3a3a;
+      border-radius: 4px;
+    }
+
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .status-running {
+      background-color: #2a2a2a;
+      color: #4CAF50;
+    }
+
+    .status-running .status-indicator {
+      background-color: #4CAF50;
+      box-shadow: 0 0 8px #4CAF50;
+    }
+
+    .status-stopped {
+      background-color: #2a2a2a;
+      color: #f44336;
+    }
+
+    .status-stopped .status-indicator {
+      background-color: #f44336;
+      box-shadow: 0 0 8px #f44336;
+    }
+
+    .status-connecting {
+      background-color: #2a2a2a;
+      color: #ffc107;
+    }
+
+    .status-connecting .status-indicator {
+      background-color: #ffc107;
+      box-shadow: 0 0 8px #ffc107;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    button {
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: monospace;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    button:active {
+      background-color: #3d8b40;
+    }
   </style>
 </head>
 
 <body>
-  <div id="status">Status: Connecting...</div>
+  <div id="status" class="status-connecting">
+    <span class="status-indicator"></span>
+    <span class="status-text">Connecting...</span>
+  </div>
+  <div id="worlds-container">
+    <div class="worlds-header">Active Worlds</div>
+    <div id="worlds-list">
+      <div class="worlds-loading">Loading worlds...</div>
+    </div>
+  </div>
   <div id="output"></div>
   <input type="text" id="command-input" placeholder="Enter command...">
   <button onclick="sendCommand()">Send</button>
@@ -52,13 +229,31 @@
       ws = new WebSocket(`ws://${window.location.host}/ws`);
 
       ws.onopen = function () {
-        statusDiv.textContent = 'Status: Connected';
-        // Request initial status
+        const statusDiv = document.getElementById('status');
+        const statusText = statusDiv.querySelector('.status-text');
+        statusDiv.classList.remove('status-connecting', 'status-running', 'status-stopped');
+        statusDiv.classList.add('status-connecting');
+        statusText.textContent = 'Connected - Checking Status...';
+
+        // Request initial status and worlds
         ws.send(JSON.stringify({ type: 'get_status' }));
+        ws.send(JSON.stringify({ type: 'get_worlds' }));
+
+        // Set up periodic status updates every 10 seconds
+        setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'get_status' }));
+            ws.send(JSON.stringify({ type: 'get_worlds' }));
+          }
+        }, 10 * 1000);
       };
 
       ws.onclose = function () {
-        statusDiv.textContent = 'Status: Disconnected - Reconnecting...';
+        const statusDiv = document.getElementById('status');
+        const statusText = statusDiv.querySelector('.status-text');
+        statusDiv.classList.remove('status-connecting', 'status-running', 'status-stopped');
+        statusDiv.classList.add('status-connecting');
+        statusText.textContent = 'Disconnected - Reconnecting...';
         setTimeout(connect, 1000);
       };
 
@@ -67,15 +262,22 @@
 
         switch (data.type) {
           case 'container_output':
+            console.log('container_output', data.output);
             appendOutput(data.output);
             break;
           case 'command_response':
-            appendOutput(`> ${data.output}`, 'command-line');
+            console.log('command_response', data.output);
             break;
           case 'status_update':
+            console.log('status_update', data.status);
             updateStatus(data.status);
             break;
+          case 'worlds_update':
+            console.log('worlds_update', data.output);
+            updateWorlds(data.output);
+            break;
           case 'error':
+            console.log('error', data.message);
             appendOutput(`Error: ${data.message}`, 'error');
             break;
         }
@@ -89,7 +291,7 @@
           type: 'command',
           command: command
         }));
-        appendOutput(`$ ${command}`, 'command-line');
+        appendOutput(`${command}`, 'command-line');
         commandInput.value = '';
       }
     }
@@ -105,11 +307,71 @@
     }
 
     function updateStatus(status) {
+      const statusDiv = document.getElementById('status');
+      const statusText = statusDiv.querySelector('.status-text');
+
+      // Remove all existing status classes
+      statusDiv.classList.remove('status-connecting', 'status-running', 'status-stopped');
+
       if (status.error) {
-        statusDiv.textContent = `Status: Error - ${status.error}`;
+        statusDiv.classList.add('status-stopped');
+        statusText.textContent = `Error - ${status.error}`;
         return;
       }
-      statusDiv.textContent = `Status: ${status.status} (${status.name})`;
+
+      switch (status.status.toLowerCase()) {
+        case 'running':
+          statusDiv.classList.add('status-running');
+          break;
+        case 'stopped':
+        case 'exited':
+          statusDiv.classList.add('status-stopped');
+          break;
+        default:
+          statusDiv.classList.add('status-connecting');
+      }
+
+      statusText.textContent = `${status.status} (${status.name})`;
+    }
+
+    function updateWorlds(worlds) {
+      const worldsList = document.getElementById('worlds-list');
+      worldsList.innerHTML = ''; // Clear existing worlds
+
+      if (!worlds || worlds.length === 0) {
+        const noWorldsDiv = document.createElement('div');
+        noWorldsDiv.className = 'no-worlds';
+        noWorldsDiv.textContent = 'No active worlds found';
+        worldsList.appendChild(noWorldsDiv);
+        return;
+      }
+
+      worlds.forEach(world => {
+        const worldDiv = document.createElement('div');
+        worldDiv.className = 'world-card';
+
+        worldDiv.innerHTML = `
+          <span class="world-name">${world.name}</span>
+          <div class="world-stat">
+            <span class="label">Users:</span>
+            <span>${world.users}</span>
+          </div>
+          <div class="world-stat">
+            <span class="label">Present:</span>
+            <span>${world.present}</span>
+          </div>
+          <div class="world-stat">
+            <span class="label">Access:</span>
+            <span>${world.accessLevel}</span>
+          </div>
+          <div class="world-stat">
+            <span class="label">Max Users:</span>
+            <span>${world.maxUsers}</span>
+          </div>
+        `;
+
+        worldsList.appendChild(worldDiv);
+      });
     }
 
     // Handle Enter key in input

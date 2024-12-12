@@ -51,6 +51,46 @@ async def websocket_endpoint(websocket: WebSocket):
                         "type": "status_update",
                         "status": status
                     })
+                elif data["type"] == "get_worlds":
+                    worlds_output = docker_manager.send_command("worlds")
+
+                    # Remove the command and the command prompt
+                    worlds_output = worlds_output.split('\n')[1:-1]
+                    print(len(worlds_output))
+
+                    worlds = []
+                    for world in worlds_output:
+                        # Split by tabs to separate the main sections
+                        parts = world.split('\t')
+
+                        # Extract name and index from the first part
+                        name_part = parts[0]
+                        # Find the position where "Users:" starts
+                        users_index = name_part.find("Users:")
+                        # Extract just the name portion (removing the index and trailing spaces)
+                        name = name_part[name_part.find(']') + 2:users_index].strip()
+
+                        # Extract users count from the first part
+                        users = int(name_part[users_index:].split(': ')[1])
+                        # Extract remaining values
+                        present = int(parts[1].split(': ')[1])
+                        accessLevel = parts[2].split(': ')[1]
+                        maxUsers = int(parts[3].split(': ')[1])
+
+                        worlds.append({
+                            "name": name,
+                            "users": users,
+                            "present": present,
+                            "accessLevel": accessLevel,
+                            "maxUsers": maxUsers,
+                        })
+
+                    print(worlds)
+
+                    await websocket.send_json({
+                        "type": "worlds_update",
+                        "output": worlds
+                    })
             except json.JSONDecodeError:
                 await websocket.send_json({
                     "type": "error",

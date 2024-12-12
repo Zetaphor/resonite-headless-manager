@@ -40,17 +40,17 @@ class DockerManager:
         try:
             container = self.client.containers.get(self.container_name)
 
-            # Get raw connection to container
+            # Get raw connection to container without logs
             socket = container.attach_socket(params={
                 'stdin': True,
                 'stdout': True,
                 'stderr': True,
                 'stream': True,
-                'logs': True
+                'logs': False
             })
 
-            # Send the command with both carriage return and newline
-            cmd_bytes = f"{command}\r\n".encode('utf-8')
+            # Send the command with a carriage return
+            cmd_bytes = f"{command}\r".encode('utf-8')
             socket._sock.send(cmd_bytes)
 
             # Read the response with timeout
@@ -104,7 +104,7 @@ class DockerManager:
                 'stderr': True,
                 'stream': True
             })
-            cmd_socket._sock.send(b'\r\n')
+            cmd_socket._sock.send(b'\r')
             cmd_socket.close()
 
             while self._monitor_running:
