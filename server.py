@@ -4,6 +4,8 @@ from fastapi.staticfiles import StaticFiles
 import asyncio
 from docker_manager import DockerManager
 import json
+import threading
+from functools import partial
 
 app = FastAPI()
 
@@ -63,15 +65,28 @@ async def websocket_endpoint(websocket: WebSocket):
 
 async def monitor_docker_output(websocket: WebSocket):
     """Monitor Docker output and send to WebSocket"""
-    def callback(output):
-        asyncio.create_task(send_output(websocket, output))
+    loop = asyncio.get_running_loop()
 
-    # Run the monitoring in a thread pool executor
-    await asyncio.get_event_loop().run_in_executor(
-        None,
-        docker_manager.monitor_output,
-        callback
+    async def async_callback(output):
+        await send_output(websocket, output)
+
+    def sync_callback(output):
+        asyncio.run_coroutine_threadsafe(async_callback(output), loop)
+
+    # Run the monitoring in a separate thread
+    thread = threading.Thread(
+        target=docker_manager.monitor_output,
+        args=(sync_callback,),
+        daemon=True
     )
+    thread.start()
+
+    try:
+        while True:
+            await asyncio.sleep(1)  # Keep the monitoring alive
+    except asyncio.CancelledError:
+        # Cleanup when the task is cancelled
+        pass
 
 async def send_output(websocket: WebSocket, output):
     """Send output to WebSocket"""

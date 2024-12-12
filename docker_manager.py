@@ -12,14 +12,18 @@ class DockerManager:
         self.output_buffer = deque(maxlen=1000)  # Rolling buffer of last 1000 lines
         self.buffer_lock = Lock()  # Thread-safe access to buffer
         # Regex pattern for ANSI escape sequences
-        self.ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        self.ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]|\x1B[()][AB012]')
+        self._monitor_running = False
 
     def add_to_buffer(self, text):
         with self.buffer_lock:
             # Remove all ANSI escape sequences
-            text = self.ansi_escape.sub('', text)
-            for line in text.splitlines():
-                if line.strip():  # Only add non-empty lines
+            clean_text = self.ansi_escape.sub('', text)
+
+            # Split on both \r\n and \n, and filter out empty lines
+            lines = [line.strip() for line in clean_text.replace('\r\n', '\n').split('\n')]
+            for line in lines:
+                if line:  # Only add non-empty lines
                     self.output_buffer.append(line)
 
     def get_recent_lines(self, count=50):
@@ -75,6 +79,8 @@ class DockerManager:
 
     def monitor_output(self, callback):
         """Monitor container output continuously"""
+        self._monitor_running = True
+        buffer = ""
         try:
             container = self.client.containers.get(self.container_name)
             socket = container.attach_socket(params={
@@ -95,20 +101,40 @@ class DockerManager:
             cmd_socket._sock.send(b'\r\n')
             cmd_socket.close()
 
-            while True:
+            while self._monitor_running:
                 ready = select.select([socket._sock], [], [], 0.1)
                 if ready[0]:
-                    chunk = socket._sock.recv(4096).decode('utf-8')
-                    if chunk:
-                        chunk = chunk.strip()
-                        self.add_to_buffer(chunk)  # Add to rolling buffer
-                        callback(chunk)
+                    try:
+                        chunk = socket._sock.recv(4096).decode('utf-8')
+                        if chunk:
+                            # Append chunk to buffer
+                            buffer += chunk
+
+                            # Process complete lines
+                            while '\n' in buffer:
+                                line, buffer = buffer.split('\n', 1)
+                                line = line.strip()
+                                if line:
+                                    # Clean the line before adding to buffer and sending
+                                    clean_line = self.ansi_escape.sub('', line)
+                                    if clean_line:
+                                        self.add_to_buffer(clean_line)
+                                        callback(clean_line + '\n')
+
+                            # If buffer gets too large, clear it
+                            if len(buffer) > 8192:
+                                buffer = buffer[-4096:]
+
+                    except Exception as e:
+                        print(f"Error reading from socket: {e}")
+                        break
 
         except docker.errors.NotFound:
             print(f"Container {self.container_name} not found")
         except Exception as e:
             print(f"Error: {str(e)}")
         finally:
+            self._monitor_running = False
             try:
                 socket.close()
             except:
