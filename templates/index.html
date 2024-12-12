@@ -641,6 +641,144 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* Add these new styles and replace existing related styles */
+    .footer-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background-color: #2a2a2a;
+      padding: 8px 20px;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+      z-index: 100;
+    }
+
+    .footer-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .overlay-panel {
+      position: fixed;
+      bottom: 70px;
+      /* Height of footer + padding */
+      left: 0;
+      right: 0;
+      background-color: #1a1a1a;
+      border-top: 1px solid #3a3a3a;
+      display: none;
+      z-index: 99;
+      height: calc(50vh - 10px);
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel-content {
+      height: 100%;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Console specific styles */
+    .console-section .panel-content {
+      gap: 10px;
+      padding-bottom: 50px;
+    }
+
+    .console-section #output {
+      flex: 1;
+      margin: 0;
+    }
+
+    .console-section .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .console-section #command-input {
+      flex: 1;
+      margin: 0;
+    }
+
+    /* Config section specific styles */
+    .config-section .panel-content {
+      gap: 15px;
+      padding-bottom: 50px;
+    }
+
+    .config-section #config-editor {
+      flex: 1;
+      margin: 0;
+      resize: none;
+    }
+
+    /* Update main content to account for footer */
+    .layout-container {
+      padding-bottom: 70px;
+      /* Height of footer + some extra space */
+    }
+
+    /* Update toggle button styles */
+    .toggle-console {
+      background: none;
+      border: 1px solid #4CAF50;
+      color: #4CAF50;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9em;
+    }
+
+    .toggle-console:hover {
+      background-color: #4CAF5022;
+    }
+
+    .toggle-console.expanded {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .editor-container {
+      position: relative;
+      flex: 1;
+      display: flex;
+      background-color: #1e1e1e;
+      border: 1px solid #3a3a3a;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .line-numbers {
+      width: 50px;
+      padding: 10px 5px;
+      background-color: #252525;
+      border-right: 1px solid #3a3a3a;
+      color: #666;
+      font-family: 'Roboto Mono', monospace;
+      font-size: 14px;
+      text-align: right;
+      user-select: none;
+      white-space: pre;
+      line-height: 1.5;
+      overflow: hidden;
+    }
+
+    #config-editor {
+      flex: 1;
+      margin: 0;
+      border: none;
+      border-radius: 0 4px 4px 0;
+      padding: 10px;
+      line-height: 1.5;
+      white-space: pre;
+      overflow-y: scroll;
+      overflow-x: auto;
+      resize: none;
+    }
   </style>
 </head>
 
@@ -659,32 +797,6 @@
           <div class="worlds-loading">Loading worlds...</div>
         </div>
       </div>
-      <div class="toggle-buttons">
-        <button class="toggle-console" onclick="toggleConsole()">
-          <span class="icon">▼</span>
-          <span>Toggle Console</span>
-        </button>
-        <button class="toggle-console" onclick="toggleConfig()">
-          <span class="icon">▼</span>
-          <span>Toggle Config Editor</span>
-        </button>
-      </div>
-      <div class="console-section">
-        <div id="output"></div>
-        <input type="text" id="command-input" placeholder="Enter command...">
-        <button onclick="sendCommand()">Send</button>
-      </div>
-      <div class="config-section">
-        <div class="config-header">
-          <h3>Headless Config</h3>
-          <div class="config-actions">
-            <button onclick="formatConfig()">Format JSON</button>
-            <button class="save-button" onclick="saveConfig()">Save Changes</button>
-          </div>
-        </div>
-        <textarea id="config-editor" spellcheck="false"></textarea>
-        <div class="error-message"></div>
-      </div>
     </div>
 
     <div class="sidebar">
@@ -696,6 +808,46 @@
           How often to refresh the worlds list (in seconds)
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <div class="footer-buttons">
+      <button class="toggle-console" onclick="toggleConsole()">
+        <span class="icon">▼</span>
+        <span>Console</span>
+      </button>
+      <button class="toggle-console" onclick="toggleConfig()">
+        <span class="icon">▼</span>
+        <span>Config Editor</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="overlay-panel console-section">
+    <div class="panel-content">
+      <div id="output"></div>
+      <div class="input-group">
+        <input type="text" id="command-input" placeholder="Enter command...">
+        <button onclick="sendCommand()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay-panel config-section">
+    <div class="panel-content">
+      <div class="config-header">
+        <h3>Headless Config</h3>
+        <div class="config-actions">
+          <button onclick="formatConfig()">Format JSON</button>
+          <button class="save-button" onclick="saveConfig()">Save Changes</button>
+        </div>
+      </div>
+      <div class="editor-container">
+        <div class="line-numbers" id="line-numbers"></div>
+        <textarea id="config-editor" spellcheck="false"></textarea>
+      </div>
+      <div class="error-message"></div>
     </div>
   </div>
 
@@ -937,13 +1089,37 @@
       const toggleButton = document.querySelector('.toggle-console:nth-of-type(1)');
       const isExpanded = consoleSection.style.display === 'block';
 
+      // Close config panel if open
+      const configSection = document.querySelector('.config-section');
+      const configButton = document.querySelector('.toggle-console:nth-of-type(2)');
+      configSection.style.display = 'none';
+      configButton.classList.remove('expanded');
+
       consoleSection.style.display = isExpanded ? 'none' : 'block';
       toggleButton.classList.toggle('expanded', !isExpanded);
 
       if (!isExpanded) {
-        // Scroll to the input when opening
         const input = document.getElementById('command-input');
-        input.scrollIntoView({ behavior: 'smooth' });
+        input.focus();
+      }
+    }
+
+    function toggleConfig() {
+      const configSection = document.querySelector('.config-section');
+      const toggleButton = document.querySelector('.toggle-console:nth-of-type(2)');
+      const isExpanded = configSection.style.display === 'block';
+
+      // Close console panel if open
+      const consoleSection = document.querySelector('.console-section');
+      const consoleButton = document.querySelector('.toggle-console:nth-of-type(1)');
+      consoleSection.style.display = 'none';
+      consoleButton.classList.remove('expanded');
+
+      configSection.style.display = isExpanded ? 'none' : 'block';
+      toggleButton.classList.toggle('expanded', !isExpanded);
+
+      if (!isExpanded && !currentConfig) {
+        loadConfig();
       }
     }
 
@@ -995,19 +1171,6 @@
 
     let currentConfig = null;
 
-    function toggleConfig() {
-      const configSection = document.querySelector('.config-section');
-      const toggleButton = document.querySelector('.toggle-console:nth-of-type(2)');
-      const isExpanded = configSection.style.display === 'block';
-
-      configSection.style.display = isExpanded ? 'none' : 'block';
-      toggleButton.classList.toggle('expanded', !isExpanded);
-
-      if (!isExpanded && !currentConfig) {
-        loadConfig();
-      }
-    }
-
     async function loadConfig() {
       try {
         const response = await fetch('/config');
@@ -1019,6 +1182,7 @@
 
         const editor = document.getElementById('config-editor');
         editor.value = JSON.stringify(config, null, 2);
+        updateLineNumbers();
         hideError();
       } catch (error) {
         showError(`Failed to load config: ${error.message}`);
@@ -1058,6 +1222,7 @@
       try {
         const config = JSON.parse(editor.value);
         editor.value = JSON.stringify(config, null, 2);
+        updateLineNumbers();
         hideError();
       } catch (error) {
         showError(`Invalid JSON: ${error.message}`);
@@ -1141,6 +1306,20 @@
           console.warn('Unknown message type:', data.type);
       }
     }
+
+    function updateLineNumbers() {
+      const editor = document.getElementById('config-editor');
+      const lineNumbers = document.getElementById('line-numbers');
+      const lines = editor.value.split('\n');
+      const numbers = lines.map((_, i) => `${(i + 1).toString().padStart(3)}`).join('\n');
+      lineNumbers.textContent = numbers;
+    }
+
+    // Add event listeners for the config editor
+    document.getElementById('config-editor').addEventListener('input', updateLineNumbers);
+    document.getElementById('config-editor').addEventListener('scroll', function () {
+      document.getElementById('line-numbers').scrollTop = this.scrollTop;
+    });
   </script>
 </body>
 
