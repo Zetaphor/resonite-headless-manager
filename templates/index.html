@@ -762,9 +762,13 @@
       font-size: 14px;
       text-align: right;
       user-select: none;
-      white-space: pre;
       line-height: 1.5;
       overflow: hidden;
+    }
+
+    /* Remove white-space: pre from line numbers */
+    .line-numbers div {
+      padding-right: 8px;
     }
 
     #config-editor {
@@ -778,6 +782,63 @@
       overflow-y: scroll;
       overflow-x: auto;
       resize: none;
+      position: relative;
+      z-index: 1;
+      background: transparent;
+    }
+
+    #config-editor-highlight {
+      position: absolute;
+      left: 60px;
+      /* Width of line numbers + padding */
+      right: 0;
+      height: 21px;
+      /* Should match line-height */
+      background-color: #2d2d2d;
+      pointer-events: none;
+      z-index: 0;
+      /* transition: top 0.1s; */
+    }
+
+    /* Add these styles in the <style> section, near the editor styles */
+    .editor-container {
+      /* ... existing styles ... */
+    }
+
+    /* Add these new styles */
+    #config-editor {
+      /* ... existing styles ... */
+      caret-color: #fff;
+      /* Makes cursor visible */
+    }
+
+    /* Style for the current line highlight */
+    #config-editor-highlight {
+      position: absolute;
+      width: 100%;
+      background-color: #2d2d2d;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Ensure editor content stays above highlight */
+    #config-editor {
+      position: relative;
+      z-index: 1;
+      background: transparent;
+    }
+
+    /* Update line numbers container to accommodate highlight */
+    .line-numbers {
+      /* ... existing styles ... */
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Add style for highlighted line number */
+    .line-numbers .current-line {
+      color: #fff;
+      background-color: #2d2d2d;
     }
   </style>
 </head>
@@ -1183,6 +1244,7 @@
         const editor = document.getElementById('config-editor');
         editor.value = JSON.stringify(config, null, 2);
         updateLineNumbers();
+        updateLineHighlight();
         hideError();
       } catch (error) {
         showError(`Failed to load config: ${error.message}`);
@@ -1316,10 +1378,67 @@
     }
 
     // Add event listeners for the config editor
-    document.getElementById('config-editor').addEventListener('input', updateLineNumbers);
+    document.getElementById('config-editor').addEventListener('input', () => {
+      updateLineNumbers();
+      updateLineHighlight();
+    });
+
+    document.getElementById('config-editor').addEventListener('keyup', updateLineHighlight);
+    document.getElementById('config-editor').addEventListener('click', updateLineHighlight);
     document.getElementById('config-editor').addEventListener('scroll', function () {
       document.getElementById('line-numbers').scrollTop = this.scrollTop;
+      const highlight = document.getElementById('config-editor-highlight');
+      if (highlight) {
+        highlight.style.transform = `translateY(-${this.scrollTop}px)`;
+      }
     });
+
+    // Update the loadConfig function to initialize the highlight
+    async function loadConfig() {
+      try {
+        const response = await fetch('/config');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const config = await response.json();
+        currentConfig = config;
+
+        const editor = document.getElementById('config-editor');
+        editor.value = JSON.stringify(config, null, 2);
+        updateLineNumbers();
+        updateLineHighlight();
+        hideError();
+      } catch (error) {
+        showError(`Failed to load config: ${error.message}`);
+      }
+    }
+
+    function updateLineHighlight() {
+      const editor = document.getElementById('config-editor');
+      const lineNumbers = document.getElementById('line-numbers');
+      const lineHeight = 21; // Fixed line height to match CSS
+
+      // Get cursor position
+      const cursorPosition = editor.selectionStart;
+      const lines = editor.value.substr(0, cursorPosition).split('\n');
+      const currentLineNumber = lines.length;
+
+      // Update line numbers highlight
+      const lineNumberElements = editor.value.split('\n')
+        .map((_, i) => `<div class="${i + 1 === currentLineNumber ? 'current-line' : ''}">${(i + 1).toString().padStart(3)}</div>`)
+        .join('');
+      lineNumbers.innerHTML = lineNumberElements;
+
+      // Update editor line highlight
+      let highlight = document.getElementById('config-editor-highlight');
+      if (!highlight) {
+        highlight = document.createElement('div');
+        highlight.id = 'config-editor-highlight';
+        editor.parentElement.insertBefore(highlight, editor);
+      }
+
+      highlight.style.top = `${(currentLineNumber - 1) * lineHeight + 10}px`; // Add padding offset
+    }
   </script>
 </body>
 
