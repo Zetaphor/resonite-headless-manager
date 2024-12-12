@@ -1,0 +1,819 @@
+body {
+  background-color: #1a1a1a;
+  color: #ffffff;
+  margin: 0;
+  padding: 20px;
+  min-height: 100vh;
+  box-sizing: border-box;
+  font-family: 'Roboto', sans-serif;
+}
+
+#output {
+  width: 100%;
+  height: 400px;
+  background-color: #1e1e1e;
+  color: #ffffff;
+  font-family: monospace;
+  padding: 10px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+#command-input {
+  width: 80%;
+  padding: 8px 12px;
+  background-color: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  color: #ffffff;
+  font-family: monospace;
+  border-radius: 4px;
+}
+
+#command-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+#status {
+  margin-bottom: 10px;
+  padding: 15px;
+  border-radius: 5px;
+  font-family: monospace;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 30px);
+}
+
+.command-line {
+  color: #00ff00;
+}
+
+.error {
+  color: #ff0000;
+}
+
+#worlds-container {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #2a2a2a;
+  border-radius: 5px;
+}
+
+#worlds-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 15px;
+  padding: 5px;
+}
+
+.world-card {
+  background-color: #3a3a3a;
+  padding: 15px;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  min-width: 400px;
+}
+
+.world-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.world-card .world-name {
+  font-size: 1.1em;
+  font-weight: bold;
+  color: #4CAF50;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #4a4a4a;
+  margin-bottom: 5px;
+}
+
+.world-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #ffffff;
+  font-family: monospace;
+}
+
+.world-stat .label {
+  color: #888;
+}
+
+.world-card span {
+  color: #ffffff;
+  font-family: monospace;
+}
+
+.world-card .world-name {
+  font-weight: bold;
+  color: #4CAF50;
+}
+
+.worlds-header {
+  color: #ffffff;
+  margin-bottom: 10px;
+  font-size: 1.2em;
+  font-weight: 500;
+  font-family: 'Roboto', sans-serif;
+}
+
+.worlds-loading {
+  color: #888;
+  font-style: italic;
+  padding: 10px;
+}
+
+.no-worlds {
+  color: #888;
+  padding: 10px;
+  text-align: center;
+  background-color: #3a3a3a;
+  border-radius: 4px;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-running {
+  background-color: #2a2a2a;
+  color: #4CAF50;
+}
+
+.status-running .status-indicator {
+  background-color: #4CAF50;
+  box-shadow: 0 0 8px #4CAF50;
+}
+
+.status-stopped {
+  background-color: #2a2a2a;
+  color: #f44336;
+}
+
+.status-stopped .status-indicator {
+  background-color: #f44336;
+  box-shadow: 0 0 8px #f44336;
+}
+
+.status-connecting {
+  background-color: #2a2a2a;
+  color: #ffc107;
+}
+
+.status-connecting .status-indicator {
+  background-color: #ffc107;
+  box-shadow: 0 0 8px #ffc107;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+button {
+  padding: 8px 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: monospace;
+  font-weight: bold;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+button:active {
+  background-color: #3d8b40;
+}
+
+.world-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.world-description {
+  grid-column: 1 / -1;
+  color: #888;
+  font-style: italic;
+  padding: 5px 0;
+  border-top: 1px solid #4a4a4a;
+  margin-top: 5px;
+}
+
+.world-tags {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tag {
+  background-color: #4a4a4a;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.9em;
+}
+
+.user-list {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  padding: 10px;
+  border-top: 1px solid #3a3a3a;
+}
+
+.user-list .label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.user-list .users {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 10px;
+}
+
+.user-list .user {
+  background-color: #4CAF50;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.9em;
+}
+
+.session-id {
+  font-family: monospace;
+  font-size: 0.8em;
+  color: #888;
+  word-break: break-all;
+  flex-grow: 1;
+}
+
+.console-section {
+  margin-top: 20px;
+  display: none;
+  /* Hidden by default */
+}
+
+.toggle-console {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid #4CAF50;
+  padding: 8px 16px;
+  color: #4CAF50;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggle-console:hover {
+  background-color: #4CAF5022;
+}
+
+.toggle-console .icon {
+  transition: transform 0.2s;
+}
+
+.toggle-console.expanded .icon {
+  transform: rotate(180deg);
+}
+
+.console-section #output {
+  width: 100%;
+  height: 400px;
+  background-color: #1e1e1e;
+  color: #ffffff;
+  font-family: monospace;
+  padding: 10px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.console-section #command-input {
+  width: 80%;
+  padding: 8px 12px;
+  background-color: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  color: #ffffff;
+  font-family: monospace;
+  border-radius: 4px;
+}
+
+.session-id-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-button {
+  background: none;
+  border: none;
+  color: #4CAF50;
+  padding: 2px 6px;
+  font-size: 0.8em;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all 0.2s;
+}
+
+.copy-button:hover {
+  opacity: 1;
+  background-color: #4CAF5022;
+}
+
+.copy-button.copied {
+  color: #45a049;
+  background-color: #4CAF5044;
+}
+
+/* Add new styles for config section */
+.config-section {
+  margin-top: 20px;
+  background-color: #2a2a2a;
+  padding: 15px;
+  border-radius: 5px;
+  display: none;
+  /* Hidden by default */
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+#config-editor {
+  width: 100%;
+  height: 400px;
+  background-color: #1e1e1e;
+  color: #ffffff;
+  font-family: monospace;
+  padding: 10px;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  resize: vertical;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+.config-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.save-button {
+  background-color: #4CAF50;
+}
+
+.save-button:disabled {
+  background-color: #666;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #ff6b6b;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #ff6b6b22;
+  border-radius: 4px;
+  display: none;
+}
+
+/* Add new styles after existing styles */
+.toggle-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.toggle-console {
+  /* Update toggle button styles */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-console .icon {
+  display: inline-block;
+  transition: transform 0.2s;
+  transform: rotate(-90deg);
+  /* Point right by default */
+}
+
+.toggle-console.expanded .icon {
+  transform: rotate(0deg);
+  /* Point down when expanded */
+}
+
+.layout-container {
+  display: flex;
+  gap: 20px;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+}
+
+.sidebar {
+  width: 300px;
+  background-color: #2a2a2a;
+  padding: 15px;
+  border-radius: 5px;
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.sidebar-header {
+  color: #ffffff;
+  margin-bottom: 15px;
+  font-size: 1.2em;
+  font-weight: bold;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.setting-group {
+  margin-bottom: 15px;
+}
+
+.setting-label {
+  display: block;
+  color: #888;
+  margin-bottom: 5px;
+}
+
+.setting-input {
+  width: calc(100% - 16px);
+  padding: 8px;
+  background-color: #1e1e1e;
+  border: 1px solid #3a3a3a;
+  color: #ffffff;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.setting-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.setting-description {
+  font-size: 0.9em;
+  color: #666;
+  margin-top: 5px;
+}
+
+/* Add these styles in the <style> section */
+.user-card {
+  background-color: #2a2a2a;
+  border-radius: 4px;
+  padding: 8px;
+  margin: 5px 0;
+  width: calc(100% - 16px);
+}
+
+.user-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.user-name {
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.user-role {
+  font-size: 0.8em;
+  padding: 2px 6px;
+  background-color: #4CAF50;
+  border-radius: 10px;
+  color: white;
+}
+
+.user-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 0.9em;
+  color: #888;
+}
+
+.user-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.present {
+  background-color: #4CAF50;
+  box-shadow: 0 0 4px #4CAF50;
+}
+
+.status-dot.away {
+  background-color: #888;
+}
+
+.user-stat.silenced {
+  color: #ff6b6b;
+}
+
+.user-list {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  padding: 10px;
+  border-top: 1px solid #3a3a3a;
+}
+
+.user-list .label {
+  display: block;
+  margin-bottom: 10px;
+  color: #888;
+}
+
+.users {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 10px;
+}
+
+.last-updated {
+  font-size: 0.9em;
+  color: #888;
+  font-style: italic;
+}
+
+#output,
+#command-input,
+.session-id,
+.world-stat,
+.user-card {
+  font-family: 'Roboto Mono', monospace;
+}
+
+.worlds-header,
+.sidebar-header {
+  color: #ffffff;
+  margin-bottom: 10px;
+  font-size: 1.2em;
+  font-weight: 500;
+  font-family: 'Roboto', sans-serif;
+}
+
+button {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+}
+
+#config-editor {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 14px;
+}
+
+.world-card .world-name {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+}
+
+.user-name {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+}
+
+.setting-label {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+}
+
+.setting-description {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 300;
+}
+
+@media (max-width: 480px) {
+  .world-card {
+    min-width: 300px;
+  }
+
+  #worlds-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Add these new styles and replace existing related styles */
+.footer-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #2a2a2a;
+  padding: 8px 20px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+}
+
+.footer-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.overlay-panel {
+  position: fixed;
+  bottom: 70px;
+  /* Height of footer + padding */
+  left: 0;
+  right: 0;
+  background-color: #1a1a1a;
+  border-top: 1px solid #3a3a3a;
+  display: none;
+  z-index: 99;
+  height: calc(50vh - 10px);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.panel-content {
+  height: 100%;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Console specific styles */
+.console-section .panel-content {
+  gap: 10px;
+  padding-bottom: 50px;
+}
+
+.console-section #output {
+  flex: 1;
+  margin: 0;
+}
+
+.console-section .input-group {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.console-section #command-input {
+  flex: 1;
+  margin: 0;
+}
+
+/* Config section specific styles */
+.config-section .panel-content {
+  gap: 15px;
+  padding-bottom: 50px;
+}
+
+.config-section #config-editor {
+  flex: 1;
+  margin: 0;
+  resize: none;
+}
+
+/* Update main content to account for footer */
+.layout-container {
+  padding-bottom: 70px;
+  /* Height of footer + some extra space */
+}
+
+/* Update toggle button styles */
+.toggle-console {
+  background: none;
+  border: 1px solid #4CAF50;
+  color: #4CAF50;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+}
+
+.toggle-console:hover {
+  background-color: #4CAF5022;
+}
+
+.toggle-console.expanded {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.editor-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+  background-color: #1e1e1e;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.line-numbers {
+  width: 50px;
+  padding: 10px 5px;
+  background-color: #252525;
+  border-right: 1px solid #3a3a3a;
+  color: #666;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 14px;
+  text-align: right;
+  user-select: none;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* Remove white-space: pre from line numbers */
+.line-numbers div {
+  padding-right: 8px;
+}
+
+#config-editor {
+  flex: 1;
+  margin: 0;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  padding: 10px;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-y: scroll;
+  overflow-x: auto;
+  resize: none;
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+#config-editor-highlight {
+  position: absolute;
+  left: 60px;
+  /* Width of line numbers + padding */
+  right: 0;
+  height: 21px;
+  /* Should match line-height */
+  background-color: #2d2d2d;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#config-editor {
+  caret-color: #fff;
+  /* Makes cursor visible */
+}
+
+/* Style for the current line highlight */
+#config-editor-highlight {
+  position: absolute;
+  width: 100%;
+  background-color: #2d2d2d;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ensure editor content stays above highlight */
+#config-editor {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+/* Update line numbers container to accommodate highlight */
+.line-numbers {
+  position: relative;
+  z-index: 1;
+}
+
+/* Add style for highlighted line number */
+.line-numbers .current-line {
+  color: #fff;
+  background-color: #2d2d2d;
+}
