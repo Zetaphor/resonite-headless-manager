@@ -51,6 +51,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      width: calc(100% - 30px);
     }
 
     .command-line {
@@ -237,8 +238,9 @@
 
     .user-list {
       grid-column: 1 / -1;
-      padding: 5px 0;
-      border-top: 1px solid #4a4a4a;
+      margin-top: 10px;
+      padding: 10px;
+      border-top: 1px solid #3a3a3a;
     }
 
     .user-list .label {
@@ -248,8 +250,9 @@
 
     .user-list .users {
       display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 10px;
     }
 
     .user-list .user {
@@ -344,6 +347,236 @@
       color: #45a049;
       background-color: #4CAF5044;
     }
+
+    /* Add new styles for config section */
+    .config-section {
+      margin-top: 20px;
+      background-color: #2a2a2a;
+      padding: 15px;
+      border-radius: 5px;
+      display: none;
+      /* Hidden by default */
+    }
+
+    .config-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    #config-editor {
+      width: 100%;
+      height: 400px;
+      background-color: #1e1e1e;
+      color: #ffffff;
+      font-family: monospace;
+      padding: 10px;
+      border: 1px solid #3a3a3a;
+      border-radius: 4px;
+      resize: vertical;
+      white-space: pre;
+      overflow-wrap: normal;
+      overflow-x: auto;
+    }
+
+    .config-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .save-button {
+      background-color: #4CAF50;
+    }
+
+    .save-button:disabled {
+      background-color: #666;
+      cursor: not-allowed;
+    }
+
+    .error-message {
+      color: #ff6b6b;
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #ff6b6b22;
+      border-radius: 4px;
+      display: none;
+    }
+
+    /* Add new styles after existing styles */
+    .toggle-buttons {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    .toggle-console {
+      /* Update toggle button styles */
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toggle-console .icon {
+      display: inline-block;
+      transition: transform 0.2s;
+      transform: rotate(-90deg);
+      /* Point right by default */
+    }
+
+    .toggle-console.expanded .icon {
+      transform: rotate(0deg);
+      /* Point down when expanded */
+    }
+
+    .layout-container {
+      display: flex;
+      gap: 20px;
+      min-height: 100vh;
+    }
+
+    .main-content {
+      flex: 1;
+    }
+
+    .sidebar {
+      width: 300px;
+      background-color: #2a2a2a;
+      padding: 15px;
+      border-radius: 5px;
+      height: fit-content;
+      position: sticky;
+      top: 20px;
+    }
+
+    .sidebar-header {
+      color: #ffffff;
+      margin-bottom: 15px;
+      font-size: 1.2em;
+      font-weight: bold;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #3a3a3a;
+    }
+
+    .setting-group {
+      margin-bottom: 15px;
+    }
+
+    .setting-label {
+      display: block;
+      color: #888;
+      margin-bottom: 5px;
+    }
+
+    .setting-input {
+      width: calc(100% - 16px);
+      padding: 8px;
+      background-color: #1e1e1e;
+      border: 1px solid #3a3a3a;
+      color: #ffffff;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    .setting-input:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
+
+    .setting-description {
+      font-size: 0.9em;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    /* Add these styles in the <style> section */
+    .user-card {
+      background-color: #2a2a2a;
+      border-radius: 4px;
+      padding: 8px;
+      margin: 5px 0;
+      width: calc(100% - 16px);
+    }
+
+    .user-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .user-name {
+      font-weight: bold;
+      color: #ffffff;
+    }
+
+    .user-role {
+      font-size: 0.8em;
+      padding: 2px 6px;
+      background-color: #4CAF50;
+      border-radius: 10px;
+      color: white;
+    }
+
+    .user-stats {
+      display: flex;
+      gap: 10px;
+      font-size: 0.9em;
+      color: #888;
+    }
+
+    .user-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .status-dot.present {
+      background-color: #4CAF50;
+      box-shadow: 0 0 4px #4CAF50;
+    }
+
+    .status-dot.away {
+      background-color: #888;
+    }
+
+    .user-stat.silenced {
+      color: #ff6b6b;
+    }
+
+    .user-list {
+      grid-column: 1 / -1;
+      margin-top: 10px;
+      padding: 10px;
+      border-top: 1px solid #3a3a3a;
+    }
+
+    .user-list .label {
+      display: block;
+      margin-bottom: 10px;
+      color: #888;
+    }
+
+    .users {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 10px;
+    }
+
+    .last-updated {
+      font-size: 0.9em;
+      color: #888;
+      font-style: italic;
+    }
   </style>
 </head>
 
@@ -351,21 +584,55 @@
   <div id="status" class="status-connecting">
     <span class="status-indicator"></span>
     <span class="status-text">Connecting...</span>
+    <span class="last-updated">Last updated: Never</span>
   </div>
-  <div id="worlds-container">
-    <div class="worlds-header">Active Worlds</div>
-    <div id="worlds-list">
-      <div class="worlds-loading">Loading worlds...</div>
+
+  <div class="layout-container">
+    <div class="main-content">
+      <div id="worlds-container">
+        <div class="worlds-header">Active Worlds</div>
+        <div id="worlds-list">
+          <div class="worlds-loading">Loading worlds...</div>
+        </div>
+      </div>
+      <div class="toggle-buttons">
+        <button class="toggle-console" onclick="toggleConsole()">
+          <span class="icon">▼</span>
+          <span>Toggle Console</span>
+        </button>
+        <button class="toggle-console" onclick="toggleConfig()">
+          <span class="icon">▼</span>
+          <span>Toggle Config Editor</span>
+        </button>
+      </div>
+      <div class="console-section">
+        <div id="output"></div>
+        <input type="text" id="command-input" placeholder="Enter command...">
+        <button onclick="sendCommand()">Send</button>
+      </div>
+      <div class="config-section">
+        <div class="config-header">
+          <h3>Headless Config</h3>
+          <div class="config-actions">
+            <button onclick="formatConfig()">Format JSON</button>
+            <button class="save-button" onclick="saveConfig()">Save Changes</button>
+          </div>
+        </div>
+        <textarea id="config-editor" spellcheck="false"></textarea>
+        <div class="error-message"></div>
+      </div>
     </div>
-  </div>
-  <button class="toggle-console" onclick="toggleConsole()">
-    <span class="icon">▼</span>
-    <span>Toggle Console</span>
-  </button>
-  <div class="console-section">
-    <div id="output"></div>
-    <input type="text" id="command-input" placeholder="Enter command...">
-    <button onclick="sendCommand()">Send</button>
+
+    <div class="sidebar">
+      <div class="sidebar-header">Settings</div>
+      <div class="setting-group">
+        <label class="setting-label" for="refresh-interval">World Refresh Interval</label>
+        <input type="number" id="refresh-interval" class="setting-input" value="30" min="10">
+        <div class="setting-description">
+          How often to refresh the worlds list (in seconds)
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -388,13 +655,13 @@
         ws.send(JSON.stringify({ type: 'get_status' }));
         ws.send(JSON.stringify({ type: 'get_worlds' }));
 
-        // Set up periodic status updates every 10 seconds
-        setInterval(() => {
+        // Set up periodic status updates with the configurable interval
+        refreshTimer = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'get_status' }));
             ws.send(JSON.stringify({ type: 'get_worlds' }));
           }
-        }, 10 * 1000);
+        }, refreshInterval);
       };
 
       ws.onclose = function () {
@@ -407,28 +674,32 @@
       };
 
       ws.onmessage = function (event) {
-        const data = JSON.parse(event.data);
-
-        switch (data.type) {
-          case 'container_output':
-            // console.log('container_output', data.output);
-            appendOutput(data.output);
-            break;
-          case 'command_response':
-            console.log('command_response', data.output);
-            break;
-          case 'status_update':
-            // console.log('status_update', data.status);
-            updateStatus(data.status);
-            break;
-          case 'worlds_update':
-            // console.log('worlds_update', data.output);
-            updateWorlds(data.output);
-            break;
-          case 'error':
-            console.log('error', data.message);
-            appendOutput(`Error: ${data.message}`, 'error');
-            break;
+        let data;
+        try {
+          // First try to parse as regular JSON
+          if (typeof event.data === 'string') {
+            data = JSON.parse(event.data);
+          }
+          // If it's a blob, handle it asynchronously
+          else if (event.data instanceof Blob) {
+            // event.data.text().then(text => {
+            //   try {
+            //     data = JSON.parse(text);
+            //     handleMessage(data);
+            //   } catch (e) {
+            //     console.error('Failed to parse blob data:', e);
+            //     appendOutput(`Error: Failed to parse server message - ${e.message}`, 'error');
+            //   }
+            // });
+            return;
+          }
+          // Handle the parsed data
+          if (data) {
+            handleMessage(data);
+          }
+        } catch (e) {
+          console.error('Failed to parse message:', e);
+          appendOutput(`Error: Failed to parse server message - ${e.message}`, 'error');
         }
       };
     }
@@ -458,6 +729,12 @@
     function updateStatus(status) {
       const statusDiv = document.getElementById('status');
       const statusText = statusDiv.querySelector('.status-text');
+      const lastUpdated = statusDiv.querySelector('.last-updated');
+
+      // Update last-updated timestamp
+      const now = new Date();
+      const timeString = now.toLocaleTimeString();
+      lastUpdated.textContent = `Last updated: ${timeString}`;
 
       // Remove all existing status classes
       statusDiv.classList.remove('status-connecting', 'status-running', 'status-stopped');
@@ -506,11 +783,31 @@
            </div>` : '';
 
         // Create users list HTML if users exist
-        const usersHtml = world.userList.length > 0 ?
+        const usersHtml = world.users_list && world.users_list.length > 0 ?
           `<div class="user-list">
             <span class="label">Connected Users:</span>
             <div class="users">
-              ${world.userList.map(user => `<span class="user">${user}</span>`).join('')}
+              ${world.users_list.map(user => `
+                <div class="user-card">
+                  <div class="user-header">
+                    <span class="user-name">${user.username}</span>
+                    <span class="user-role">${user.role}</span>
+                  </div>
+                  <div class="user-stats">
+                    <span class="user-stat" title="Present Status">
+                      <i class="status-dot ${user.present ? 'present' : 'away'}"></i>
+                      ${user.present ? 'Present' : 'Away'}
+                    </span>
+                    <span class="user-stat" title="Ping">
+                      ${user.ping}ms
+                    </span>
+                    <span class="user-stat" title="FPS">
+                      ${user.fps.toFixed(1)} FPS
+                    </span>
+                    ${user.silenced ? '<span class="user-stat silenced" title="User is silenced">🔇</span>' : ''}
+                  </div>
+                </div>
+              `).join('')}
             </div>
            </div>` : '';
 
@@ -573,7 +870,7 @@
 
     function toggleConsole() {
       const consoleSection = document.querySelector('.console-section');
-      const toggleButton = document.querySelector('.toggle-console');
+      const toggleButton = document.querySelector('.toggle-console:nth-of-type(1)');
       const isExpanded = consoleSection.style.display === 'block';
 
       consoleSection.style.display = isExpanded ? 'none' : 'block';
@@ -597,6 +894,155 @@
           button.classList.remove('copied');
         }, 2000);
       });
+    }
+
+    let currentConfig = null;
+
+    function toggleConfig() {
+      const configSection = document.querySelector('.config-section');
+      const toggleButton = document.querySelector('.toggle-console:nth-of-type(2)');
+      const isExpanded = configSection.style.display === 'block';
+
+      configSection.style.display = isExpanded ? 'none' : 'block';
+      toggleButton.classList.toggle('expanded', !isExpanded);
+
+      if (!isExpanded && !currentConfig) {
+        loadConfig();
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const response = await fetch('/config');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const config = await response.json();
+        currentConfig = config;
+
+        const editor = document.getElementById('config-editor');
+        editor.value = JSON.stringify(config, null, 2);
+        hideError();
+      } catch (error) {
+        showError(`Failed to load config: ${error.message}`);
+      }
+    }
+
+    async function saveConfig() {
+      const editor = document.getElementById('config-editor');
+      try {
+        // Validate JSON
+        const config = JSON.parse(editor.value);
+
+        // Send to server
+        const response = await fetch('/config', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(config)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail || 'Failed to save config');
+        }
+
+        currentConfig = config;
+        hideError();
+        showSuccess();
+      } catch (error) {
+        showError(`Invalid JSON: ${error.message}`);
+      }
+    }
+
+    function formatConfig() {
+      const editor = document.getElementById('config-editor');
+      try {
+        const config = JSON.parse(editor.value);
+        editor.value = JSON.stringify(config, null, 2);
+        hideError();
+      } catch (error) {
+        showError(`Invalid JSON: ${error.message}`);
+      }
+    }
+
+    function showError(message) {
+      const errorDiv = document.querySelector('.error-message');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      errorDiv.style.backgroundColor = '#ff6b6b22';
+      errorDiv.style.color = '#ff6b6b';
+    }
+
+    function showSuccess() {
+      const errorDiv = document.querySelector('.error-message');
+      errorDiv.textContent = 'Config saved successfully!';
+      errorDiv.style.display = 'block';
+      errorDiv.style.backgroundColor = '#4CAF5022';
+      errorDiv.style.color = '#4CAF50';
+      setTimeout(() => {
+        errorDiv.style.display = 'none';
+      }, 3000);
+    }
+
+    function hideError() {
+      const errorDiv = document.querySelector('.error-message');
+      errorDiv.style.display = 'none';
+    }
+
+    let refreshInterval = 30 * 1000; // Default 30 seconds
+    let refreshTimer = null;
+
+    function updateRefreshInterval() {
+      console.log('updateRefreshInterval');
+      const input = document.getElementById('refresh-interval');
+      const newInterval = Math.max(5, Math.min(60, parseInt(input.value))) * 1000;
+
+      if (refreshInterval !== newInterval) {
+        refreshInterval = newInterval;
+
+        // Clear existing timer
+        if (refreshTimer) {
+          clearInterval(refreshTimer);
+        }
+
+        // Set up new timer
+        refreshTimer = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'get_status' }));
+            ws.send(JSON.stringify({ type: 'get_worlds' }));
+          }
+        }, refreshInterval);
+      }
+    }
+
+    // Add event listener for the refresh interval input
+    document.getElementById('refresh-interval').addEventListener('change', updateRefreshInterval);
+    document.getElementById('refresh-interval').addEventListener('input', updateRefreshInterval);
+
+    // Move the message handling logic to a separate function
+    function handleMessage(data) {
+      switch (data.type) {
+        case 'container_output':
+          appendOutput(data.output);
+          break;
+        case 'command_response':
+          console.log('command_response', data.output);
+          break;
+        case 'status_update':
+          updateStatus(data.status);
+          break;
+        case 'worlds_update':
+          updateWorlds(data.output);
+          break;
+        case 'error':
+          console.log('error', data.message);
+          appendOutput(`Error: ${data.message}`, 'error');
+          break;
+        default:
+          console.warn('Unknown message type:', data.type);
+      }
     }
   </script>
 </body>

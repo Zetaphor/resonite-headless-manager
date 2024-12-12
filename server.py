@@ -1,5 +1,5 @@
-from fastapi import FastAPI, WebSocket
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, WebSocket, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import asyncio
 from docker_manager import DockerManager
@@ -9,6 +9,7 @@ from functools import partial
 import time
 from dotenv import load_dotenv
 import os
+from typing import Dict, Any
 
 # Load environment variables
 load_dotenv()
@@ -23,6 +24,37 @@ active_connections = []
 
 # Initialize DockerManager with container name from .env
 docker_manager = DockerManager(os.getenv('CONTAINER_NAME', 'resonite-headless'))  # Fallback to 'resonite-headless' if not set
+
+# Add config file handling
+def load_config() -> Dict[Any, Any]:
+    """Load the headless config file"""
+    config_path = os.getenv('CONFIG_PATH')
+    if not config_path:
+        raise ValueError("CONFIG_PATH not set in environment variables")
+
+    try:
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        raise ValueError("Invalid JSON in config file")
+    except FileNotFoundError:
+        raise ValueError(f"Config file not found at {config_path}")
+
+def save_config(config_data: Dict[Any, Any]) -> None:
+    """Save the headless config file"""
+    config_path = os.getenv('CONFIG_PATH')
+    if not config_path:
+        raise ValueError("CONFIG_PATH not set in environment variables")
+
+    # Validate JSON before saving
+    try:
+        # Test if the data can be serialized
+        json.dumps(config_data)
+    except (TypeError, json.JSONDecodeError):
+        raise ValueError("Invalid JSON data")
+
+    with open(config_path, 'w') as f:
+        json.dump(config_data, f, indent=2)
 
 def format_uptime(uptime_str):
     """Convert .NET TimeSpan format to human readable format"""
@@ -95,7 +127,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
                     # Remove the command and the command prompt
                     worlds_output = worlds_output.split('\n')[1:-1]
-                    print(len(worlds_output))
 
                     worlds = []
                     for i, world in enumerate(worlds_output):
@@ -107,6 +138,9 @@ async def websocket_endpoint(websocket: WebSocket):
                         # Get detailed status
                         status_output = docker_manager.send_command("status")
                         status_lines = status_output.split('\n')[1:-1]  # Remove command and prompt
+
+                        # Get the focused world name
+                        focused_world_name = status_lines[-1][:-1]
 
                         # Parse status output
                         status_data = {}
@@ -135,13 +169,48 @@ async def websocket_endpoint(websocket: WebSocket):
                             "hidden": status_data.get("Hidden from listing", "False") == "True",
                             "mobileFriendly": status_data.get("Mobile Friendly", "False") == "True",
                             "description": status_data.get("Description", ""),
-                            "tags": status_data.get("Tags", ""),
-                            "userList": status_data.get("Users", "").strip().split()
+                            "tags": status_data.get("Tags", "")
                         }
 
-                        worlds.append(world_data)
+                        # Send the users command to the focused world
+                        users_output = docker_manager.send_command(f"users")
+                        # Remove command and prompt lines
+                        users_lines = users_output.split('\n')[1:-1]
 
-                    print(worlds)
+                        # Parse users
+                        users_data = []
+                        for user_line in users_lines:
+                            if user_line.strip():  # Skip empty lines
+                                user_info = {}
+                                # Split by spaces but preserve quoted strings
+                                parts = user_line.split()
+
+                                # Get username (everything before "ID:")
+                                id_index = user_line.find("ID:")
+                                if id_index != -1:
+                                    user_info["username"] = user_line[:id_index].strip()
+
+                                # Parse key-value pairs
+                                for i in range(len(parts)):
+                                    if parts[i].endswith(":") and i + 1 < len(parts):
+                                        key = parts[i][:-1].lower()  # Remove colon and convert to lowercase
+                                        value = parts[i + 1]
+                                        if key == "present":
+                                            value = value.lower() == "true"
+                                        elif key == "ping":
+                                            value = int(value)
+                                        elif key == "fps":
+                                            value = float(value)
+                                        elif key == "silenced":
+                                            value = value.lower() == "true"
+                                        user_info[key] = value
+
+                                users_data.append(user_info)
+
+                        # Add users data to world_data
+                        world_data["users_list"] = users_data
+
+                        worlds.append(world_data)
 
                     await websocket.send_json({
                         "type": "worlds_update",
@@ -159,12 +228,22 @@ async def websocket_endpoint(websocket: WebSocket):
         active_connections.remove(websocket)
         monitor_task.cancel()
 
+async def is_websocket_connected(websocket: WebSocket) -> bool:
+    """Check if the websocket is still connected"""
+    try:
+        # Try sending a ping frame
+        await websocket.send_bytes(b'')
+        return True
+    except:
+        return False
+
 async def monitor_docker_output(websocket: WebSocket):
     """Monitor Docker output and send to WebSocket"""
     loop = asyncio.get_running_loop()
 
     async def async_callback(output):
-        await send_output(websocket, output)
+        if await is_websocket_connected(websocket):
+            await send_output(websocket, output)
 
     def sync_callback(output):
         asyncio.run_coroutine_threadsafe(async_callback(output), loop)
@@ -178,7 +257,7 @@ async def monitor_docker_output(websocket: WebSocket):
     thread.start()
 
     try:
-        while True:
+        while await is_websocket_connected(websocket):
             await asyncio.sleep(1)  # Keep the monitoring alive
     except asyncio.CancelledError:
         # Cleanup when the task is cancelled
@@ -187,12 +266,35 @@ async def monitor_docker_output(websocket: WebSocket):
 async def send_output(websocket: WebSocket, output):
     """Send output to WebSocket"""
     try:
-        await websocket.send_json({
-            "type": "container_output",
-            "output": output
-        })
+        if await is_websocket_connected(websocket):
+            # Ensure the output is properly encoded
+            if not isinstance(output, str):
+                output = str(output)
+
+            await websocket.send_json({
+                "type": "container_output",
+                "output": output
+            })
     except Exception as e:
         print(f"Error sending output: {e}")
+
+@app.get("/config")
+async def get_config():
+    """Get the current headless config"""
+    try:
+        config = load_config()
+        return JSONResponse(content=config)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/config")
+async def update_config(config_data: Dict[Any, Any]):
+    """Update the headless config"""
+    try:
+        save_config(config_data)
+        return JSONResponse(content={"message": "Config updated successfully"})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

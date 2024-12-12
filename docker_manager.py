@@ -9,7 +9,7 @@ class DockerManager:
     def __init__(self, container_name):
         self.client = docker.from_env()
         self.container_name = container_name
-        self.output_buffer = deque(maxlen=1000)  # Rolling buffer of last 1000 lines
+        self.output_buffer = deque(maxlen=25)  # Rolling buffer of last 25 lines
         self.buffer_lock = Lock()  # Thread-safe access to buffer
         # Regex pattern for ANSI escape sequences
         self.ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]|\x1B[()][AB012]')
@@ -89,12 +89,14 @@ class DockerManager:
         buffer = ""
         try:
             container = self.client.containers.get(self.container_name)
+            # Completely disable historical logs and only get new output
             socket = container.attach_socket(params={
                 'stdin': False,
                 'stdout': True,
                 'stderr': True,
                 'stream': True,
-                'logs': True
+                'logs': False,  # Disable historical logs
+                'since': 0,     # Ignore any historical logs
             })
 
             # Send initial carriage returns to get prompt
@@ -102,7 +104,8 @@ class DockerManager:
                 'stdin': True,
                 'stdout': True,
                 'stderr': True,
-                'stream': True
+                'stream': True,
+                'logs': False  # Also disable logs for command socket
             })
             cmd_socket._sock.send(b'\r')
             cmd_socket.close()
@@ -111,7 +114,7 @@ class DockerManager:
                 ready = select.select([socket._sock], [], [], 0.1)
                 if ready[0]:
                     try:
-                        chunk = socket._sock.recv(4096).decode('utf-8')
+                        chunk = socket._sock.recv(2048).decode('utf-8')
                         if chunk:
                             # Append chunk to buffer
                             buffer += chunk
@@ -128,8 +131,8 @@ class DockerManager:
                                         callback(clean_line + '\n')
 
                             # If buffer gets too large, clear it
-                            if len(buffer) > 8192:
-                                buffer = buffer[-4096:]
+                            if len(buffer) > 2048:
+                                buffer = buffer[-1024:]
 
                     except Exception as e:
                         print(f"Error reading from socket: {e}")
@@ -157,17 +160,3 @@ class DockerManager:
             }
         except Exception as e:
             return {'error': str(e)}
-
-    def parse_status_output(self, output):
-        """Parse the status command output into a structured format"""
-        status_data = {}
-        lines = output.strip().split('\n')
-        for line in lines:
-            clean_line = re.sub(r'<color=#[0-9a-fA-F]{6}>', '', line)
-            clean_line = clean_line.replace('<color=#ffffff>', '')
-
-            if ':' in clean_line:
-                key, value = clean_line.split(':', 1)
-                status_data[key.strip()] = value.strip()
-
-        return status_data
