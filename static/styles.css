@@ -286,11 +286,15 @@ button:active {
 }
 
 .toggle-console .icon {
+  display: inline-block;
   transition: transform 0.2s;
+  transform: rotate(-90deg);
+  /* Point right by default */
 }
 
 .toggle-console.expanded .icon {
-  transform: rotate(180deg);
+  transform: rotate(-180deg);
+  /* Point up when expanded */
 }
 
 .console-section #output {
@@ -419,8 +423,8 @@ button:active {
 }
 
 .toggle-console.expanded .icon {
-  transform: rotate(0deg);
-  /* Point down when expanded */
+  transform: rotate(-180deg);
+  /* Point up when expanded */
 }
 
 .layout-container {
@@ -643,7 +647,7 @@ button {
 .footer-buttons {
   display: flex;
   gap: 10px;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .overlay-panel {
@@ -749,7 +753,8 @@ button {
   text-align: right;
   user-select: none;
   line-height: 1.5;
-  overflow: hidden;
+  overflow-y: hidden;
+  box-sizing: border-box;
 }
 
 /* Remove white-space: pre from line numbers */
@@ -771,6 +776,7 @@ button {
   position: relative;
   z-index: 1;
   background: transparent;
+  box-sizing: border-box;
 }
 
 #config-editor-highlight {
@@ -816,4 +822,40 @@ button {
 .line-numbers .current-line {
   color: #fff;
   background-color: #2d2d2d;
+}
+
+/* Add these new styles */
+.line-numbers div {
+  height: 21px;
+  padding-right: 8px;
+}
+
+/* Ensure both scrollbars appear */
+.editor-container:hover #config-editor::-webkit-scrollbar,
+.editor-container:hover .line-numbers::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+/* Style the scrollbars */
+#config-editor::-webkit-scrollbar,
+.line-numbers::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+#config-editor::-webkit-scrollbar-track,
+.line-numbers::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+#config-editor::-webkit-scrollbar-thumb,
+.line-numbers::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  border-radius: 5px;
+}
+
+#config-editor::-webkit-scrollbar-thumb:hover,
+.line-numbers::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
 }

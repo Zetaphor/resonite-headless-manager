@@ -458,9 +458,28 @@ function updateLineNumbers() {
   const editor = document.getElementById('config-editor');
   const lineNumbers = document.getElementById('line-numbers');
   const lines = editor.value.split('\n');
-  const numbers = lines.map((_, i) => `${(i + 1).toString().padStart(3)}`).join('\n');
-  lineNumbers.textContent = numbers;
+
+  // Create div elements for each line number
+  const numbersHtml = lines
+    .map((_, i) => `<div>${(i + 1).toString().padStart(3)}</div>`)
+    .join('');
+
+  lineNumbers.innerHTML = numbersHtml;
+
+  // Sync scroll position
+  lineNumbers.scrollTop = editor.scrollTop;
 }
+
+// Update the scroll event listener
+document.getElementById('config-editor').addEventListener('scroll', function () {
+  const lineNumbers = document.getElementById('line-numbers');
+  lineNumbers.scrollTop = this.scrollTop;
+
+  const highlight = document.getElementById('config-editor-highlight');
+  if (highlight) {
+    highlight.style.transform = `translateY(-${this.scrollTop}px)`;
+  }
+});
 
 // Add event listeners for the config editor
 document.getElementById('config-editor').addEventListener('input', () => {
