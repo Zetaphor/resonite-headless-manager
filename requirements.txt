@@ -2,3 +2,4 @@ docker
 fastapi
 uvicorn
 asyncio
+python-dotenv

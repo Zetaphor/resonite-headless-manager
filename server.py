@@ -7,6 +7,11 @@ import json
 import threading
 from functools import partial
 import time
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI()
 
@@ -16,8 +21,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Store active WebSocket connections
 active_connections = []
 
-# Initialize DockerManager
-docker_manager = DockerManager("resonite-headless")  # Replace with your container name
+# Initialize DockerManager with container name from .env
+docker_manager = DockerManager(os.getenv('CONTAINER_NAME', 'resonite-headless'))  # Fallback to 'resonite-headless' if not set
 
 def format_uptime(uptime_str):
     """Convert .NET TimeSpan format to human readable format"""
