@@ -6,6 +6,11 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#1a1a1a">
   <meta name="darkreader-lock">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap"
+    rel="stylesheet">
   <style>
     body {
       background-color: #1a1a1a;
@@ -14,6 +19,7 @@
       padding: 20px;
       min-height: 100vh;
       box-sizing: border-box;
+      font-family: 'Roboto', sans-serif;
     }
 
     #output {
@@ -71,7 +77,7 @@
 
     #worlds-list {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
       gap: 15px;
       padding: 5px;
     }
@@ -84,7 +90,7 @@
       flex-direction: column;
       gap: 8px;
       transition: transform 0.2s, box-shadow 0.2s;
-      min-width: 300px;
+      min-width: 400px;
     }
 
     .world-card:hover {
@@ -127,7 +133,8 @@
       color: #ffffff;
       margin-bottom: 10px;
       font-size: 1.2em;
-      font-weight: bold;
+      font-weight: 500;
+      font-family: 'Roboto', sans-serif;
     }
 
     .worlds-loading {
@@ -577,6 +584,63 @@
       color: #888;
       font-style: italic;
     }
+
+    #output,
+    #command-input,
+    .session-id,
+    .world-stat,
+    .user-card {
+      font-family: 'Roboto Mono', monospace;
+    }
+
+    .worlds-header,
+    .sidebar-header {
+      color: #ffffff;
+      margin-bottom: 10px;
+      font-size: 1.2em;
+      font-weight: 500;
+      font-family: 'Roboto', sans-serif;
+    }
+
+    button {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 500;
+    }
+
+    #config-editor {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 14px;
+    }
+
+    .world-card .world-name {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 500;
+    }
+
+    .user-name {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 500;
+    }
+
+    .setting-label {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 500;
+    }
+
+    .setting-description {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 300;
+    }
+
+    @media (max-width: 480px) {
+      .world-card {
+        min-width: 300px;
+      }
+
+      #worlds-list {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 
@@ -884,16 +948,49 @@
     }
 
     function copyToClipboard(sessionId) {
-      navigator.clipboard.writeText(sessionId).then(() => {
-        const button = document.querySelector(`[data-session-id="${sessionId}"]`);
-        button.textContent = 'Copied!';
-        button.classList.add('copied');
+      // Check if the Clipboard API is supported
+      if (!navigator.clipboard) {
+        // Fallback for browsers that don't support the Clipboard API
+        const textArea = document.createElement('textarea');
+        textArea.value = sessionId;
+        textArea.style.position = 'fixed';  // Avoid scrolling to bottom
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
 
-        setTimeout(() => {
-          button.textContent = 'Copy';
-          button.classList.remove('copied');
-        }, 2000);
-      });
+        try {
+          document.execCommand('copy');
+          const button = document.querySelector(`[data-session-id="${sessionId}"]`);
+          button.textContent = 'Copied!';
+          button.classList.add('copied');
+
+          setTimeout(() => {
+            button.textContent = 'Copy';
+            button.classList.remove('copied');
+          }, 2000);
+        } catch (err) {
+          console.error('Failed to copy text: ', err);
+        }
+
+        document.body.removeChild(textArea);
+        return;
+      }
+
+      // Use Clipboard API if available
+      navigator.clipboard.writeText(sessionId)
+        .then(() => {
+          const button = document.querySelector(`[data-session-id="${sessionId}"]`);
+          button.textContent = 'Copied!';
+          button.classList.add('copied');
+
+          setTimeout(() => {
+            button.textContent = 'Copy';
+            button.classList.remove('copied');
+          }, 2000);
+        })
+        .catch(err => {
+          console.error('Failed to copy text: ', err);
+        });
     }
 
     let currentConfig = null;
