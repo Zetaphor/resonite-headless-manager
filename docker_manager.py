@@ -160,3 +160,44 @@ class DockerManager:
             }
         except Exception as e:
             return {'error': str(e)}
+
+    def restart_container(self):
+        """Safely restart the Docker container"""
+        try:
+            container = self.client.containers.get(self.container_name)
+
+            # Stop monitoring if it's running
+            self._monitor_running = False
+
+            # First try to gracefully stop the container
+            try:
+                container.stop(timeout=30)  # Give it 30 seconds to stop gracefully
+            except Exception as e:
+                print(f"Warning: Failed to stop container gracefully: {e}")
+                # Try to force kill if graceful stop fails
+                container.kill()
+
+            # Wait for container to fully stop
+            try:
+                container.wait(timeout=35)
+            except Exception as e:
+                print(f"Warning: Container wait timeout: {e}")
+
+            # Restart the container
+            container.restart()
+
+            # Wait for container to be running
+            retries = 0
+            while retries < 10:
+                container.reload()
+                if container.status == 'running':
+                    break
+                time.sleep(1)
+                retries += 1
+
+            return True
+
+        except docker.errors.NotFound:
+            raise Exception(f"Container {self.container_name} not found")
+        except Exception as e:
+            raise Exception(f"Failed to restart container: {str(e)}")
