@@ -10,9 +10,15 @@ import time
 from dotenv import load_dotenv
 import os
 from typing import Dict, Any
+import psutil  # Add this import
+import re
+import logging
 
 # Load environment variables
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -30,15 +36,23 @@ def load_config() -> Dict[Any, Any]:
     """Load the headless config file"""
     config_path = os.getenv('CONFIG_PATH')
     if not config_path:
+        logger.error("CONFIG_PATH environment variable is not set")
         raise ValueError("CONFIG_PATH not set in environment variables")
+
+    logger.info(f"Attempting to load config from: {config_path}")
 
     try:
         with open(config_path, 'r') as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        raise ValueError("Invalid JSON in config file")
+            raw_content = f.read()
+            return {
+                "content": raw_content
+            }
     except FileNotFoundError:
+        logger.error(f"Config file not found at path: {config_path}")
         raise ValueError(f"Config file not found at {config_path}")
+    except Exception as e:
+        logger.error(f"Unexpected error loading config: {str(e)}")
+        raise ValueError(f"Error loading config: {str(e)}")
 
 def save_config(config_data: Dict[Any, Any]) -> None:
     """Save the headless config file"""
@@ -89,6 +103,25 @@ def format_uptime(uptime_str):
     except:
         return uptime_str
 
+def parse_bans(output):
+    """Parse the ban list output into structured data"""
+    bans = []
+    # Remove the first line
+    lines = output.split('\n')[1:]
+
+    for line in lines:
+        line = line.strip()
+        line = line.replace('\t', '')
+        if line and not line.endswith('>'):  # Skip empty lines and command prompt
+            # Match the format: [index]Username:nameUserID:idMachineIds:
+            match = re.match(r'\[\d+\]Username:(.+?)UserID:(.+?)MachineIds:', line)
+            if match:
+                bans.append({
+                    'username': match.group(1).strip(),
+                    'userId': match.group(2).strip()
+                })
+    return bans
+
 @app.get("/")
 async def get():
     with open("templates/index.html") as f:
@@ -111,13 +144,39 @@ async def websocket_endpoint(websocket: WebSocket):
                 if data["type"] == "command":
                     # Execute command and send response
                     output = docker_manager.send_command(data["command"])
-                    await websocket.send_json({
-                        "type": "command_response",
-                        "output": output
-                    })
+
+                    # Special handling for listbans command
+                    if data["command"] == "listbans":
+                        bans = parse_bans(output)
+                        await websocket.send_json({
+                            "type": "bans_update",
+                            "bans": bans
+                        })
+                    else:
+                        await websocket.send_json({
+                            "type": "command_response",
+                            "command": data["command"],
+                            "output": output
+                        })
                 elif data["type"] == "get_status":
-                    # Get container status
+                    # Get container status and system metrics
                     status = docker_manager.get_container_status()
+
+                    # Get system metrics
+                    cpu_percent = psutil.cpu_percent(interval=1)
+                    memory = psutil.virtual_memory()
+                    memory_percent = memory.percent
+                    memory_used = f"{memory.used / (1024 * 1024 * 1024):.1f}GB"
+                    memory_total = f"{memory.total / (1024 * 1024 * 1024):.1f}GB"
+
+                    # Add metrics to status response
+                    status.update({
+                        "cpu_usage": cpu_percent,
+                        "memory_percent": memory_percent,
+                        "memory_used": memory_used,
+                        "memory_total": memory_total
+                    })
+
                     await websocket.send_json({
                         "type": "status_update",
                         "status": status
@@ -282,10 +341,14 @@ async def send_output(websocket: WebSocket, output):
 async def get_config():
     """Get the current headless config"""
     try:
-        config = load_config()
-        return JSONResponse(content=config)
+        result = load_config()
+        return JSONResponse(content=result)
     except ValueError as e:
+        logger.error(f"Error in get_config endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error in get_config endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 @app.post("/config")
 async def update_config(config_data: Dict[Any, Any]):
@@ -295,6 +358,30 @@ async def update_config(config_data: Dict[Any, Any]):
         return JSONResponse(content={"message": "Config updated successfully"})
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/world-properties")
+async def update_world_properties(data: dict):
+    """Update world properties"""
+    try:
+        session_id = data.get('sessionId')
+        if not session_id:
+            raise HTTPException(status_code=400, detail="Session ID is required")
+
+        # TODO: Implement the actual property updates using docker_manager
+        # You'll need to send the appropriate commands to update each property
+
+        return JSONResponse(content={"message": "Properties updated successfully"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/restart-container")
+async def restart_container():
+    """Restart the Docker container"""
+    try:
+        docker_manager.restart_container()
+        return JSONResponse(content={"message": "Container restart initiated"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

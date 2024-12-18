@@ -15,10 +15,22 @@
 </head>
 
 <body>
-  <div id="status" class="status-connecting">
-    <span class="status-indicator"></span>
-    <span class="status-text">Connecting...</span>
-    <span class="last-updated">Last updated: Never</span>
+  <div class="status-bar">
+    <div id="status" class="status-connecting">
+      <span class="status-indicator"></span>
+      <span class="status-text">Connecting...</span>
+      <div class="system-stats">
+        <span class="stat">
+          <span class="stat-label">CPU:</span>
+          <span class="stat-value" id="cpu-usage">-%</span>
+        </span>
+        <span class="stat">
+          <span class="stat-label">Memory:</span>
+          <span class="stat-value" id="memory-usage">-%</span>
+        </span>
+      </div>
+      <span class="last-updated">Last updated: Never</span>
+    </div>
   </div>
 
   <div class="layout-container">
@@ -32,12 +44,128 @@
     </div>
 
     <div class="sidebar">
-      <div class="sidebar-header">Settings</div>
-      <div class="setting-group">
-        <label class="setting-label" for="refresh-interval">World Refresh Interval</label>
-        <input type="number" id="refresh-interval" class="setting-input" value="30" min="10">
-        <div class="setting-description">
-          How often to refresh the worlds list (in seconds)
+      <!-- Application Settings Card -->
+      <div class="settings-card">
+        <div class="sidebar-header collapsible" onclick="toggleCard('app-settings')">
+          <span>Application Settings</span>
+          <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-content" id="app-settings">
+          <div class="setting-group">
+            <label class="setting-label" for="refresh-interval">World Refresh Interval</label>
+            <input type="number" id="refresh-interval" class="setting-input" value="30" min="10">
+            <div class="setting-description">
+              How often to refresh the worlds list (in seconds)
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <label class="setting-label" for="friend-requests-interval">Friend Requests Check Interval</label>
+            <input type="number" id="friend-requests-interval" class="setting-input" value="5" min="1">
+            <div class="setting-description">
+              How often to check for friend requests (in minutes)
+            </div>
+            <button onclick="clearDeniedFriendRequests()" class="clear-denied-button">
+              Clear Denied Friend Requests
+            </button>
+            <div class="setting-description">
+              Restore previously denied friend requests to show in the list again
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Friend Requests Card -->
+      <div class="settings-card friend-requests-card">
+        <div class="sidebar-header collapsible" onclick="toggleCard('friend-requests')">
+          <span>Friend Requests</span>
+          <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-content" id="friend-requests">
+          <div id="friend-requests-list">
+            <div class="no-requests">No pending friend requests</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Banned Users Card -->
+      <div class="settings-card banned-users-card">
+        <div class="sidebar-header collapsible" onclick="toggleCard('banned-users')">
+          <span>Banned Users</span>
+          <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-content" id="banned-users">
+          <div class="ban-form">
+            <input type="text" id="ban-username" class="setting-input" placeholder="Enter username to ban...">
+            <button onclick="banUser()" class="ban-button">Ban User</button>
+          </div>
+          <div id="banned-users-list">
+            <div class="no-bans">No banned users</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- World Properties Card -->
+      <div id="world-properties" style="display: none;" class="settings-card">
+        <div class="sidebar-header">World Properties</div>
+        <div class="setting-group">
+          <div class="selected-world">
+            <span id="selected-world-name"></span>
+          </div>
+
+          <div class="world-controls">
+            <div class="controls-buttons">
+              <button onclick="sendWorldCommand('restart')" class="control-button restart-button">
+                Restart
+              </button>
+              <button onclick="sendWorldCommand('save')" class="control-button save-button">
+                Save
+              </button>
+              <button onclick="sendWorldCommand('close')" class="control-button close-button">
+                Close
+              </button>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label class="setting-label" for="world-name">Name</label>
+            <input type="text" id="world-name" class="setting-input">
+          </div>
+
+          <div class="setting-row">
+            <label class="setting-label">Hidden</label>
+            <label class="checkbox-wrapper">
+              <input type="checkbox" id="world-hidden">
+              <span class="checkbox-custom"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <label class="setting-label" for="world-description">Description</label>
+            <textarea id="world-description" class="setting-input"></textarea>
+          </div>
+
+          <div class="setting-row">
+            <label class="setting-label" for="world-access-level">Access Level</label>
+            <select id="world-access-level" class="setting-input">
+              <option value="Private">Private</option>
+              <option value="LAN">LAN</option>
+              <option value="Contacts">Contacts</option>
+              <option value="ContactsPlus">Contacts Plus</option>
+              <option value="RegisteredUsers">Registered Users</option>
+              <option value="Anyone">Anyone</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <label class="setting-label" for="world-max-users">Max Users</label>
+            <input type="number" id="world-max-users" class="setting-input" min="1" max="100">
+          </div>
+
+          <div class="property-buttons">
+            <button onclick="saveWorldProperties()" class="save-button">Save Changes</button>
+            <button onclick="cancelWorldProperties()" class="cancel-button">Cancel</button>
+          </div>
         </div>
       </div>
     </div>

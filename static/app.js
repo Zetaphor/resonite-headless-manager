@@ -3,6 +3,22 @@ const output = document.getElementById('output');
 const commandInput = document.getElementById('command-input');
 const statusDiv = document.getElementById('status');
 
+let friendRequestsInterval = 5 * 60 * 1000; // Default 5 minutes
+let friendRequestsTimer = null;
+let deniedFriendRequests = new Set(JSON.parse(localStorage.getItem('deniedFriendRequests') || '[]'));
+
+let bannedUsersInterval = 5 * 60 * 1000; // Default 5 minutes
+let bannedUsersTimer = null;
+
+// Add this constant at the top of the file with other constants
+const AVAILABLE_ROLES = [
+  'Spectator',
+  'Guest',
+  'Builder',
+  'Moderator',
+  'Admin'
+];
+
 function connect() {
   ws = new WebSocket(`ws://${window.location.host}/ws`);
 
@@ -17,6 +33,18 @@ function connect() {
     ws.send(JSON.stringify({ type: 'get_status' }));
     ws.send(JSON.stringify({ type: 'get_worlds' }));
 
+    // Initial friend requests check
+    ws.send(JSON.stringify({
+      type: 'command',
+      command: 'friendRequests'
+    }));
+
+    // Initial banned users check
+    ws.send(JSON.stringify({
+      type: 'command',
+      command: 'listbans'
+    }));
+
     // Set up periodic status updates with the configurable interval
     refreshTimer = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
@@ -24,6 +52,29 @@ function connect() {
         ws.send(JSON.stringify({ type: 'get_worlds' }));
       }
     }, refreshInterval);
+
+    // Set up periodic friend requests updates
+    friendRequestsTimer = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'command',
+          command: 'friendRequests'
+        }));
+      }
+    }, friendRequestsInterval);
+
+    // Set up periodic banned users updates
+    bannedUsersTimer = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'command',
+          command: 'listbans'
+        }));
+      }
+    }, bannedUsersInterval);
+
+    // Initialize card states
+    initializeCardStates();
   };
 
   ws.onclose = function () {
@@ -92,6 +143,8 @@ function updateStatus(status) {
   const statusDiv = document.getElementById('status');
   const statusText = statusDiv.querySelector('.status-text');
   const lastUpdated = statusDiv.querySelector('.last-updated');
+  const cpuUsage = document.getElementById('cpu-usage');
+  const memoryUsage = document.getElementById('memory-usage');
 
   // Update last-updated timestamp
   const now = new Date();
@@ -105,6 +158,15 @@ function updateStatus(status) {
     statusDiv.classList.add('status-stopped');
     statusText.textContent = `Error - ${status.error}`;
     return;
+  }
+
+  // Update system stats
+  if (status.cpu_usage !== undefined) {
+    cpuUsage.textContent = `${status.cpu_usage.toFixed(1)}%`;
+  }
+
+  if (status.memory_percent !== undefined) {
+    memoryUsage.textContent = `${status.memory_percent.toFixed(1)}% (${status.memory_used}/${status.memory_total})`;
   }
 
   switch (status.status.toLowerCase()) {
@@ -134,9 +196,19 @@ function updateWorlds(worlds) {
     return;
   }
 
-  worlds.forEach(world => {
+  worlds.forEach((world, index) => {
     const worldDiv = document.createElement('div');
     worldDiv.className = 'world-card';
+    worldDiv.dataset.sessionId = world.sessionId;
+    worldDiv.dataset.name = world.name;
+    worldDiv.dataset.hidden = world.hidden;
+    worldDiv.dataset.description = world.description;
+    worldDiv.dataset.accessLevel = world.accessLevel;
+    worldDiv.dataset.maxUsers = world.maxUsers;
+    worldDiv.dataset.index = index; // Add the index to the dataset
+
+    // Add click handler
+    worldDiv.addEventListener('click', () => selectWorld(world.sessionId));
 
     // Create tags HTML if tags exist
     const tagsHtml = world.tags ?
@@ -153,7 +225,13 @@ function updateWorlds(worlds) {
                 <div class="user-card">
                   <div class="user-header">
                     <span class="user-name">${user.username}</span>
-                    <span class="user-role">${user.role}</span>
+                    <select class="role-select" onchange="handleRoleChange(event, '${user.username}', ${index})">
+                      ${AVAILABLE_ROLES.map(role => `
+                        <option value="${role}" ${user.role === role ? 'selected' : ''}>
+                          ${role}
+                        </option>
+                      `).join('')}
+                    </select>
                   </div>
                   <div class="user-stats">
                     <span class="user-stat" title="Present Status">
@@ -167,6 +245,20 @@ function updateWorlds(worlds) {
                       ${user.fps.toFixed(1)} FPS
                     </span>
                     ${user.silenced ? '<span class="user-stat silenced" title="User is silenced">🔇</span>' : ''}
+                  </div>
+                  <div class="user-actions">
+                    <button onclick="event.stopPropagation(); handleUserAction('kick', '${user.username}', ${index})" class="user-action-btn" title="Kick User">
+                      Kick
+                    </button>
+                    <button onclick="event.stopPropagation(); handleUserAction('respawn', '${user.username}', ${index})" class="user-action-btn" title="Respawn User">
+                      Respawn
+                    </button>
+                    <button onclick="event.stopPropagation(); handleUserAction('${user.silenced ? 'unsilence' : 'silence'}', '${user.username}', ${index})" class="user-action-btn ${user.silenced ? 'unsilence' : 'silence'}" title="${user.silenced ? 'Unsilence User' : 'Silence User'}">
+                      ${user.silenced ? 'Unsilence' : 'Silence'}
+                    </button>
+                    <button onclick="event.stopPropagation(); handleUserAction('ban', '${user.username}', ${index})" class="user-action-btn ban" title="Ban User">
+                      Ban
+                    </button>
                   </div>
                 </div>
               `).join('')}
@@ -318,19 +410,29 @@ function copyToClipboard(sessionId) {
 let currentConfig = null;
 
 async function loadConfig() {
+  console.log('loadConfig')
   try {
     const response = await fetch('/config');
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const config = await response.json();
-    currentConfig = config;
-
+    const result = await response.json();
     const editor = document.getElementById('config-editor');
-    editor.value = JSON.stringify(config, null, 2);
+
+    // Set the raw content in the editor
+    editor.value = result.content;
+
+    // Try to parse it as JSON
+    try {
+      const parsedConfig = JSON.parse(result.content);
+      currentConfig = parsedConfig;
+      hideError();
+    } catch (jsonError) {
+      showError(`Invalid JSON: ${jsonError.message}`);
+    }
+
     updateLineNumbers();
     updateLineHighlight();
-    hideError();
   } catch (error) {
     showError(`Failed to load config: ${error.message}`);
   }
@@ -437,6 +539,16 @@ function handleMessage(data) {
       appendOutput(data.output);
       break;
     case 'command_response':
+      if (data.command === 'friendRequests') {
+        const requests = data.output
+          .split('\n')
+          .filter((line, index) =>
+            index !== 0 && // Filter out first line
+            line.trim() && // Filter out empty lines
+            !line.includes('>') // Filter out command prompt
+          );
+        updateFriendRequests(requests);
+      }
       console.log('command_response', data.output);
       break;
     case 'status_update':
@@ -448,6 +560,9 @@ function handleMessage(data) {
     case 'error':
       console.log('error', data.message);
       appendOutput(`Error: ${data.message}`, 'error');
+      break;
+    case 'bans_update':
+      updateBannedUsers(data.bans);
       break;
     default:
       console.warn('Unknown message type:', data.type);
@@ -497,26 +612,6 @@ document.getElementById('config-editor').addEventListener('scroll', function () 
   }
 });
 
-// Update the loadConfig function to initialize the highlight
-async function loadConfig() {
-  try {
-    const response = await fetch('/config');
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const config = await response.json();
-    currentConfig = config;
-
-    const editor = document.getElementById('config-editor');
-    editor.value = JSON.stringify(config, null, 2);
-    updateLineNumbers();
-    updateLineHighlight();
-    hideError();
-  } catch (error) {
-    showError(`Failed to load config: ${error.message}`);
-  }
-}
-
 function updateLineHighlight() {
   const editor = document.getElementById('config-editor');
   const lineNumbers = document.getElementById('line-numbers');
@@ -542,4 +637,451 @@ function updateLineHighlight() {
   }
 
   highlight.style.top = `${(currentLineNumber - 1) * lineHeight + 10}px`; // Add padding offset
+}
+
+// Add this function to handle world selection
+function selectWorld(sessionId) {
+  const worldsList = document.getElementById('worlds-list');
+  const previousSelected = worldsList.querySelector('.world-card.selected');
+  if (previousSelected) {
+    previousSelected.classList.remove('selected');
+  }
+
+  const selectedWorld = worldsList.querySelector(`[data-session-id="${sessionId}"]`);
+  if (selectedWorld) {
+    selectedWorld.classList.add('selected');
+    updateWorldPropertiesEditor(sessionId);
+  }
+}
+
+// Add this function to update the properties editor
+function updateWorldPropertiesEditor(sessionId) {
+  const world = findWorldBySessionId(sessionId);
+  if (!world) return;
+
+  const propertiesEditor = document.getElementById('world-properties');
+  propertiesEditor.style.display = 'block';
+
+  // Update world name in the header
+  document.getElementById('selected-world-name').textContent = world.name;
+
+  // Update form values
+  document.getElementById('world-name').value = world.name;
+  document.getElementById('world-hidden').checked = world.hidden;
+  document.getElementById('world-description').value = world.description;
+  document.getElementById('world-access-level').value = world.accessLevel;
+  document.getElementById('world-max-users').value = world.maxUsers;
+
+  // Store session ID for the save function
+  propertiesEditor.dataset.sessionId = sessionId;
+}
+
+// Helper function to find world data by session ID
+function findWorldBySessionId(sessionId) {
+  const worldCard = document.querySelector(`.world-card[data-session-id="${sessionId}"]`);
+  if (!worldCard) return null;
+
+  // Extract world data from the card's dataset
+  return {
+    name: worldCard.dataset.name,
+    hidden: worldCard.dataset.hidden === 'true',
+    description: worldCard.dataset.description || '',
+    accessLevel: worldCard.dataset.accessLevel,
+    maxUsers: parseInt(worldCard.dataset.maxUsers)
+  };
+}
+
+// Add this function to save world properties
+async function saveWorldProperties() {
+  const propertiesEditor = document.getElementById('world-properties');
+  const sessionId = propertiesEditor.dataset.sessionId;
+
+  const data = {
+    sessionId: sessionId,
+    name: document.getElementById('world-name').value,
+    hidden: document.getElementById('world-hidden').checked,
+    description: document.getElementById('world-description').value,
+    accessLevel: document.getElementById('world-access-level').value,
+    maxUsers: parseInt(document.getElementById('world-max-users').value)
+  };
+
+  try {
+    const response = await fetch('/api/world-properties', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update world properties');
+    }
+
+    // Update the header immediately
+    document.getElementById('selected-world-name').textContent = data.name;
+
+    // Refresh the worlds list
+    ws.send(JSON.stringify({ type: 'get_worlds' }));
+  } catch (error) {
+    console.error('Error saving world properties:', error);
+  }
+}
+
+// Add this function to handle friend requests updates
+function updateFriendRequests(requests) {
+  const requestsList = document.getElementById('friend-requests-list');
+  const header = document.querySelector('.friend-requests-card .sidebar-header');
+
+  // Filter out previously denied requests
+  const filteredRequests = requests.filter(username => !deniedFriendRequests.has(username));
+
+  // Update the header with request count
+  const existingCount = header.querySelector('.request-count');
+  if (existingCount) {
+    existingCount.remove();
+  }
+
+  if (filteredRequests && filteredRequests.length > 0) {
+    const count = document.createElement('span');
+    count.className = 'request-count';
+    count.textContent = filteredRequests.length;
+    header.appendChild(count);
+  }
+
+  if (!filteredRequests || filteredRequests.length === 0) {
+    requestsList.innerHTML = '<div class="no-requests">No pending friend requests</div>';
+    return;
+  }
+
+  requestsList.innerHTML = filteredRequests
+    .map(username => `
+      <div class="friend-request">
+        <div class="username">${username}</div>
+        <div class="request-actions">
+          <button onclick="handleFriendRequest('accept', '${username}')" class="accept-button">Accept</button>
+          <button onclick="handleFriendRequest('deny', '${username}')" class="deny-button">Deny</button>
+        </div>
+      </div>
+    `)
+    .join('');
+}
+
+// Add function to handle friend request actions
+async function handleFriendRequest(action, username) {
+  // Update the command format for accepting friend requests
+  const command = action === 'accept' ? `acceptFriendRequest ${username}` : `denyFriend ${username}`;
+
+  ws.send(JSON.stringify({
+    type: 'command',
+    command: command
+  }));
+
+  // If denying, add to denied list and save to localStorage
+  if (action === 'deny') {
+    deniedFriendRequests.add(username);
+    localStorage.setItem('deniedFriendRequests', JSON.stringify([...deniedFriendRequests]));
+  }
+
+  // Refresh friend requests after action
+  setTimeout(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'command',
+        command: 'friendRequests'
+      }));
+    }
+  }, 1000); // Wait 1 second before refreshing to allow the command to process
+}
+
+// Add function to update friend requests interval
+function updateFriendRequestsInterval() {
+  const input = document.getElementById('friend-requests-interval');
+  const newInterval = Math.max(1, parseInt(input.value)) * 60 * 1000; // Convert minutes to milliseconds
+
+  if (friendRequestsInterval !== newInterval) {
+    friendRequestsInterval = newInterval;
+
+    // Clear existing timer
+    if (friendRequestsTimer) {
+      clearInterval(friendRequestsTimer);
+    }
+
+    // Set up new timer
+    friendRequestsTimer = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'command',
+          command: 'friendRequests'
+        }));
+      }
+    }, friendRequestsInterval);
+  }
+}
+
+// Add event listener for the friend requests interval input
+document.getElementById('friend-requests-interval').addEventListener('change', updateFriendRequestsInterval);
+document.getElementById('friend-requests-interval').addEventListener('input', updateFriendRequestsInterval);
+
+// Add this function after the selectWorld function
+
+async function sendWorldCommand(command) {
+  const propertiesEditor = document.getElementById('world-properties');
+  const sessionId = propertiesEditor.dataset.sessionId;
+
+  if (!sessionId) {
+    console.error('No world selected');
+    return;
+  }
+
+  // Map commands to their actual console commands
+  const commandMap = {
+    'restart': `restart ${sessionId}`,
+    'save': `save ${sessionId}`,
+    'close': `close ${sessionId}`
+  };
+
+  const actualCommand = commandMap[command];
+
+  if (!actualCommand) {
+    console.error('Invalid command');
+    return;
+  }
+
+  // Send the command through the websocket
+  ws.send(JSON.stringify({
+    type: 'command',
+    command: actualCommand
+  }));
+
+  // After a short delay, refresh the worlds list
+  setTimeout(() => {
+    ws.send(JSON.stringify({ type: 'get_worlds' }));
+  }, 1000);
+}
+
+async function restartContainer() {
+  if (confirm('Are you sure you want to restart the Docker container? This will close all worlds.')) {
+    try {
+      const response = await fetch('/api/restart-container', {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to restart container');
+      }
+
+      // The WebSocket will automatically reconnect after container restart
+    } catch (error) {
+      console.error('Error restarting container:', error);
+    }
+  }
+}
+
+// Add this function after the existing functions
+function toggleCard(cardId) {
+  const content = document.getElementById(cardId);
+  const header = content.previousElementSibling;
+
+  content.classList.toggle('collapsed');
+  header.classList.toggle('collapsed');
+
+  // Store the state in localStorage
+  localStorage.setItem(`${cardId}-collapsed`, content.classList.contains('collapsed'));
+}
+
+// Add this function to initialize the collapse states
+function initializeCardStates() {
+  const cards = ['app-settings', 'friend-requests'];
+
+  cards.forEach(cardId => {
+    const content = document.getElementById(cardId);
+    const header = content.previousElementSibling;
+    const isCollapsed = localStorage.getItem(`${cardId}-collapsed`) === 'true';
+
+    if (isCollapsed) {
+      content.classList.add('collapsed');
+      header.classList.add('collapsed');
+    }
+  });
+}
+
+// Add this new function to clear denied requests (can be called from console if needed)
+function clearDeniedFriendRequests() {
+  if (confirm('Are you sure you want to clear all denied friend requests? They will start showing up in the list again.')) {
+    deniedFriendRequests.clear();
+    localStorage.removeItem('deniedFriendRequests');
+    // Refresh the requests list
+    ws.send(JSON.stringify({
+      type: 'command',
+      command: 'friendRequests'
+    }));
+  }
+}
+
+// Replace the updateBannedUsers function with this simpler version
+function updateBannedUsers(bans) {
+  const bansList = document.getElementById('banned-users-list');
+
+  if (!bans || bans.length === 0) {
+    bansList.innerHTML = '<div class="no-bans">No banned users</div>';
+    return;
+  }
+
+  bansList.innerHTML = bans
+    .map(ban => `
+            <div class="banned-user">
+                <div class="ban-info">
+                    <span class="banned-username">${ban.username}</span>
+                    <span class="ban-reason">${ban.userId}</span>
+                </div>
+                <button onclick="unbanUser('${ban.username}')" class="unban-button">
+                    Unban
+                </button>
+            </div>
+        `)
+    .join('');
+}
+
+// Add this function to handle unbanning users
+function unbanUser(username) {
+  if (confirm(`Are you sure you want to unban ${username}?`)) {
+    ws.send(JSON.stringify({
+      type: 'command',
+      command: `unbanByName ${username}`
+    }));
+
+    // Refresh the bans list after a short delay
+    setTimeout(() => {
+      ws.send(JSON.stringify({
+        type: 'command',
+        command: 'listbans'
+      }));
+    }, 1000);
+  }
+}
+
+// Add this function to handle banning users
+function banUser() {
+  const usernameInput = document.getElementById('ban-username');
+  const username = usernameInput.value.trim();
+
+  if (!username) {
+    alert('Please enter a username');
+    return;
+  }
+
+  if (confirm(`Are you sure you want to ban ${username}?`)) {
+    ws.send(JSON.stringify({
+      type: 'command',
+      command: `banByName ${username}`
+    }));
+
+    // Clear the input
+    usernameInput.value = '';
+
+    // Refresh the bans list after a short delay
+    setTimeout(() => {
+      ws.send(JSON.stringify({
+        type: 'command',
+        command: 'listbans'
+      }));
+    }, 1000);
+  }
+}
+
+// Add event listener for Enter key in ban input
+document.addEventListener('DOMContentLoaded', () => {
+  const banInput = document.getElementById('ban-username');
+  banInput.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') {
+      banUser();
+    }
+  });
+});
+
+// Add this function after the existing functions
+async function handleUserAction(action, username, worldIndex) {
+  // First focus the correct world
+  if (action !== 'ban') { // Ban doesn't require focusing
+    ws.send(JSON.stringify({
+      type: 'command',
+      command: `focus ${worldIndex}`
+    }));
+
+    // Wait a moment for the focus command to complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  // Execute the appropriate command
+  let command;
+  switch (action) {
+    case 'kick':
+      command = `kick ${username}`;
+      break;
+    case 'respawn':
+      command = `respawn ${username}`;
+      break;
+    case 'silence':
+      command = `silence ${username}`;
+      break;
+    case 'unsilence':
+      command = `unsilence ${username}`;
+      break;
+    case 'ban':
+      command = `banByName ${username}`;
+      break;
+    default:
+      console.error('Unknown action:', action);
+      return;
+  }
+
+  // Send the command
+  ws.send(JSON.stringify({
+    type: 'command',
+    command: command
+  }));
+
+  // Refresh the worlds list after a short delay
+  setTimeout(() => {
+    ws.send(JSON.stringify({ type: 'get_worlds' }));
+  }, 1000);
+}
+
+// Add this new function after handleUserAction
+async function handleRoleChange(event, username, worldIndex) {
+  const newRole = event.target.value;
+
+  // First focus the world
+  ws.send(JSON.stringify({
+    type: 'command',
+    command: `focus ${worldIndex}`
+  }));
+
+  // Wait a moment for the focus command to complete
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  // Send the role command
+  ws.send(JSON.stringify({
+    type: 'command',
+    command: `role ${username} ${newRole}`
+  }));
+
+  // Refresh the worlds list after a short delay
+  setTimeout(() => {
+    ws.send(JSON.stringify({ type: 'get_worlds' }));
+  }, 1000);
+}
+
+// Add this function after the saveWorldProperties function
+function cancelWorldProperties() {
+  const propertiesEditor = document.getElementById('world-properties');
+  propertiesEditor.style.display = 'none';
+
+  // Clear the selected state from the world card
+  const worldsList = document.getElementById('worlds-list');
+  const selectedWorld = worldsList.querySelector('.world-card.selected');
+  if (selectedWorld) {
+    selectedWorld.classList.remove('selected');
+  }
 }
