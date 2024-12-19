@@ -224,7 +224,17 @@ function updateWorlds(worlds) {
               ${world.users_list.map(user => `
                 <div class="user-card">
                   <div class="user-header">
-                    <span class="user-name">${user.username}</span>
+                    <div class="user-info">
+                      <span class="user-name">${user.username}</span>
+                      <div class="copy-buttons">
+                        <button onclick="event.stopPropagation(); copyText('${user.username}', 'username')" class="copy-user-btn" title="Copy Username">
+                          Copy Name
+                        </button>
+                        <button onclick="event.stopPropagation(); copyText('${user.userId}', 'userId')" class="copy-user-btn" title="Copy User ID">
+                          Copy ID
+                        </button>
+                      </div>
+                    </div>
                     <select class="role-select" onchange="handleRoleChange(event, '${user.username}', ${index})">
                       ${AVAILABLE_ROLES.map(role => `
                         <option value="${role}" ${user.role === role ? 'selected' : ''}>
@@ -271,7 +281,7 @@ function updateWorlds(worlds) {
             <div class="session-id">Session: ${world.sessionId}</div>
             <button
               class="copy-button"
-              onclick="copyToClipboard('${world.sessionId}')"
+              onclick="event.stopPropagation(); copyToClipboard('${world.sessionId}')"
               data-session-id="${world.sessionId}">
               Copy
             </button>
@@ -362,6 +372,9 @@ function toggleConfig() {
 }
 
 function copyToClipboard(sessionId) {
+  const button = document.querySelector(`button[data-session-id="${sessionId}"]`);
+  if (!button) return;
+
   // Check if the Clipboard API is supported
   if (!navigator.clipboard) {
     // Fallback for browsers that don't support the Clipboard API
@@ -374,12 +387,12 @@ function copyToClipboard(sessionId) {
 
     try {
       document.execCommand('copy');
-      const button = document.querySelector(`[data-session-id="${sessionId}"]`);
+      const originalText = button.textContent;
       button.textContent = 'Copied!';
       button.classList.add('copied');
 
       setTimeout(() => {
-        button.textContent = 'Copy';
+        button.textContent = originalText;
         button.classList.remove('copied');
       }, 2000);
     } catch (err) {
@@ -393,12 +406,12 @@ function copyToClipboard(sessionId) {
   // Use Clipboard API if available
   navigator.clipboard.writeText(sessionId)
     .then(() => {
-      const button = document.querySelector(`[data-session-id="${sessionId}"]`);
+      const originalText = button.textContent;
       button.textContent = 'Copied!';
       button.classList.add('copied');
 
       setTimeout(() => {
-        button.textContent = 'Copy';
+        button.textContent = originalText;
         button.classList.remove('copied');
       }, 2000);
     })
@@ -654,7 +667,7 @@ function selectWorld(sessionId) {
   }
 }
 
-// Add this function to update the properties editor
+// Add this helper function to store the original world data
 function updateWorldPropertiesEditor(sessionId) {
   const world = findWorldBySessionId(sessionId);
   if (!world) return;
@@ -665,15 +678,31 @@ function updateWorldPropertiesEditor(sessionId) {
   // Update world name in the header
   document.getElementById('selected-world-name').textContent = world.name;
 
-  // Update form values
-  document.getElementById('world-name').value = world.name;
-  document.getElementById('world-hidden').checked = world.hidden;
-  document.getElementById('world-description').value = world.description;
-  document.getElementById('world-access-level').value = world.accessLevel;
-  document.getElementById('world-max-users').value = world.maxUsers;
+  // Update form values and store original values
+  const form = {
+    name: document.getElementById('world-name'),
+    hidden: document.getElementById('world-hidden'),
+    description: document.getElementById('world-description'),
+    accessLevel: document.getElementById('world-access-level'),
+    maxUsers: document.getElementById('world-max-users')
+  };
+
+  form.name.value = world.name;
+  form.hidden.checked = world.hidden;
+  form.description.value = world.description || '';
+  form.accessLevel.value = world.accessLevel;
+  form.maxUsers.value = world.maxUsers;
+
+  // Store original values for comparison
+  propertiesEditor.dataset.originalName = world.name;
+  propertiesEditor.dataset.originalHidden = world.hidden;
+  propertiesEditor.dataset.originalDescription = world.description || '';
+  propertiesEditor.dataset.originalAccessLevel = world.accessLevel;
+  propertiesEditor.dataset.originalMaxUsers = world.maxUsers;
 
   // Store session ID for the save function
   propertiesEditor.dataset.sessionId = sessionId;
+  propertiesEditor.dataset.worldIndex = world.index;
 }
 
 // Helper function to find world data by session ID
@@ -691,13 +720,14 @@ function findWorldBySessionId(sessionId) {
   };
 }
 
-// Add this function to save world properties
+// Update the save function to check for changes and send appropriate commands
 async function saveWorldProperties() {
   const propertiesEditor = document.getElementById('world-properties');
   const sessionId = propertiesEditor.dataset.sessionId;
+  const worldIndex = propertiesEditor.dataset.worldIndex;
 
-  const data = {
-    sessionId: sessionId,
+  // Get current values
+  const currentValues = {
     name: document.getElementById('world-name').value,
     hidden: document.getElementById('world-hidden').checked,
     description: document.getElementById('world-description').value,
@@ -705,26 +735,84 @@ async function saveWorldProperties() {
     maxUsers: parseInt(document.getElementById('world-max-users').value)
   };
 
-  try {
-    const response = await fetch('/api/world-properties', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data)
-    });
+  // Get original values
+  const originalValues = {
+    name: propertiesEditor.dataset.originalName,
+    hidden: propertiesEditor.dataset.originalHidden === 'true',
+    description: propertiesEditor.dataset.originalDescription,
+    accessLevel: propertiesEditor.dataset.originalAccessLevel,
+    maxUsers: parseInt(propertiesEditor.dataset.originalMaxUsers)
+  };
 
-    if (!response.ok) {
-      throw new Error('Failed to update world properties');
-    }
+  // First focus the world
+  ws.send(JSON.stringify({
+    type: 'command',
+    command: `focus ${worldIndex}`
+  }));
 
-    // Update the header immediately
-    document.getElementById('selected-world-name').textContent = data.name;
+  // Wait for focus command to complete
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  // Array to store commands that need to be executed
+  const commands = [];
+
+  // Check each field for changes and add necessary commands
+  if (currentValues.name !== originalValues.name) {
+    commands.push(`name ${currentValues.name}`);
+  }
+
+  if (currentValues.hidden !== originalValues.hidden) {
+    commands.push(`hideFromListing ${currentValues.hidden}`);
+  }
+
+  if (currentValues.description !== originalValues.description) {
+    commands.push(`description ${currentValues.description}`);
+  }
+
+  if (currentValues.accessLevel !== originalValues.accessLevel) {
+    commands.push(`accessLevel ${currentValues.accessLevel}`);
+  }
+
+  if (currentValues.maxUsers !== originalValues.maxUsers) {
+    commands.push(`maxUsers ${currentValues.maxUsers}`);
+  }
+
+  // Execute each command sequentially
+  for (const command of commands) {
+    ws.send(JSON.stringify({
+      type: 'command',
+      command: command
+    }));
+    // Wait between commands
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
+  // If any changes were made, save the config and reload
+  if (commands.length > 0) {
+    // Save the world configuration
+    ws.send(JSON.stringify({
+      type: 'command',
+      command: 'saveConfig'
+    }));
+
+    // Wait for save to complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Reload the config editor
+    loadConfig();
 
     // Refresh the worlds list
     ws.send(JSON.stringify({ type: 'get_worlds' }));
-  } catch (error) {
-    console.error('Error saving world properties:', error);
+  }
+
+  // Close the properties editor
+  propertiesEditor.style.display = 'none';
+
+  // Clear the selected state from the world card
+  const worldsList = document.getElementById('worlds-list');
+  const selectedWorld = worldsList.querySelector('.world-card.selected');
+  if (selectedWorld) {
+    selectedWorld.classList.remove('selected');
   }
 }
 
@@ -1084,4 +1172,54 @@ function cancelWorldProperties() {
   if (selectedWorld) {
     selectedWorld.classList.remove('selected');
   }
+}
+
+// Add this new function after copyToClipboard function
+function copyText(text, type) {
+  // Check if the Clipboard API is supported
+  if (!navigator.clipboard) {
+    // Fallback for browsers that don't support the Clipboard API
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';  // Avoid scrolling to bottom
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+      document.execCommand('copy');
+      showCopySuccess(type);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+
+    document.body.removeChild(textArea);
+    return;
+  }
+
+  // Use Clipboard API if available
+  navigator.clipboard.writeText(text)
+    .then(() => {
+      showCopySuccess(type);
+    })
+    .catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
+}
+
+// Add this helper function for showing the success message
+function showCopySuccess(type) {
+  const message = document.createElement('div');
+  message.className = 'copy-success-message';
+  message.textContent = `${type === 'username' ? 'Username' : 'User ID'} copied!`;
+  document.body.appendChild(message);
+
+  // Trigger animation
+  setTimeout(() => message.classList.add('show'), 10);
+
+  // Remove after animation
+  setTimeout(() => {
+    message.classList.remove('show');
+    setTimeout(() => document.body.removeChild(message), 300);
+  }, 2000);
 }

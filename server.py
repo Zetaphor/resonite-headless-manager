@@ -241,15 +241,21 @@ async def websocket_endpoint(websocket: WebSocket):
                         for user_line in users_lines:
                             if user_line.strip():  # Skip empty lines
                                 user_info = {}
-                                # Split by spaces but preserve quoted strings
+
+                                # Split the line by spaces but handle the special case of ID field
                                 parts = user_line.split()
 
-                                # Get username (everything before "ID:")
-                                id_index = user_line.find("ID:")
-                                if id_index != -1:
-                                    user_info["username"] = user_line[:id_index].strip()
+                                # First part is always the username
+                                user_info["username"] = parts[0]
 
-                                # Parse key-value pairs
+                                # Look for "ID:" and get the next part
+                                for i, part in enumerate(parts):
+                                    if part == "ID:":
+                                        if i + 1 < len(parts):
+                                            user_info["userId"] = parts[i + 1]
+                                        break
+
+                                # Parse the rest of the key-value pairs
                                 for i in range(len(parts)):
                                     if parts[i].endswith(":") and i + 1 < len(parts):
                                         key = parts[i][:-1].lower()  # Remove colon and convert to lowercase
@@ -257,7 +263,11 @@ async def websocket_endpoint(websocket: WebSocket):
                                         if key == "present":
                                             value = value.lower() == "true"
                                         elif key == "ping":
-                                            value = int(value)
+                                            try:
+                                                value = int(value)
+                                            except ValueError:
+                                                # Handle case where ping has "ms" suffix
+                                                value = int(value.replace("ms", ""))
                                         elif key == "fps":
                                             value = float(value)
                                         elif key == "silenced":

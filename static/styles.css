@@ -269,6 +269,8 @@ button:active {
   color: #888;
   word-break: break-all;
   flex-grow: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .console-section {
@@ -330,6 +332,7 @@ button:active {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
 }
 
 .copy-button {
@@ -341,6 +344,11 @@ button:active {
   cursor: pointer;
   opacity: 0.7;
   transition: all 0.2s;
+  min-width: 60px;
+  max-width: 60px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .copy-button:hover {
@@ -668,14 +676,13 @@ button {
 .overlay-panel {
   position: fixed;
   bottom: 70px;
-  /* Height of footer + padding */
   left: 0;
   right: 0;
   background-color: #1a1a1a;
   border-top: 1px solid #3a3a3a;
   display: none;
   z-index: 99;
-  height: calc(50vh - 10px);
+  height: 50vh;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
 }
 
@@ -684,6 +691,7 @@ button {
   padding: 20px;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 /* Console specific styles */
@@ -711,7 +719,6 @@ button {
 /* Config section specific styles */
 .config-section .panel-content {
   gap: 15px;
-  padding-bottom: 50px;
 }
 
 .config-section #config-editor {
@@ -755,6 +762,7 @@ button {
   border: 1px solid #3a3a3a;
   border-radius: 4px;
   overflow: hidden;
+  min-height: 0;
 }
 
 .line-numbers {
@@ -767,9 +775,9 @@ button {
   font-size: 14px;
   text-align: right;
   user-select: none;
-  line-height: 1.5;
   overflow-y: hidden;
   box-sizing: border-box;
+  height: 100%;
 }
 
 /* Remove white-space: pre from line numbers */
@@ -792,6 +800,7 @@ button {
   z-index: 1;
   background: transparent;
   box-sizing: border-box;
+  height: 100%;
 }
 
 #config-editor-highlight {
@@ -1468,12 +1477,6 @@ button {
   gap: 10px;
 }
 
-.user-name {
-  font-weight: bold;
-  color: #ffffff;
-  flex: 1;
-}
-
 /* Add these styles after the save-button styles */
 .property-buttons {
   display: flex;
@@ -1503,4 +1506,66 @@ button {
 .cancel-button:active {
   background-color: #555;
   transform: translateY(0);
+}
+
+/* Add these styles after the user-card styles */
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.copy-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.copy-user-btn {
+  padding: 2px 6px;
+  font-size: 0.8em;
+  background: none;
+  border: 1px solid #4CAF50;
+  color: #4CAF50;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copy-user-btn:hover {
+  background-color: #4CAF5022;
+}
+
+.copy-user-btn:active {
+  background-color: #4CAF5044;
+}
+
+/* Add styles for the success message */
+.copy-success-message {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #4CAF50;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.copy-success-message.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Update the user-header style to accommodate the new layout */
+.user-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+  gap: 10px;
 }
